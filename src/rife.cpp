@@ -311,9 +311,7 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
             }
 
             // fusionnet
-            ncnn::VkMat warped_img0;
-            ncnn::VkMat warped_img1;
-            ncnn::VkMat refine_output;
+            ncnn::VkMat out_gpu_padded;
             {
                 ncnn::Extractor ex = fusionnet.create_extractor();
                 ex.set_blob_vkallocator(blob_vkallocator);
@@ -331,18 +329,8 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.input("8", ctx1[1]);
                 ex.input("9", ctx1[2]);
                 ex.input("10", ctx1[3]);
-                ex.extract("70", warped_img0, cmd);
-                ex.extract("77", warped_img1, cmd);
-                ex.extract("162", refine_output, cmd);
+                ex.extract("188", out_gpu_padded, cmd);
             }
-
-            ncnn::VkMat out_gpu_padded;
-            // TODO implement this in postproc
-//             res = torch.sigmoid(refine_output[:, :3]) * 2 - 1
-//             mask = torch.sigmoid(refine_output[:, 3:4])
-//             merged_img = warped_img0 * mask + warped_img1 * (1 - mask)
-//             pred = merged_img + res
-//             pred = torch.clamp(pred, 0, 1)
 
             // postproc
             {
