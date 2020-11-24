@@ -44,25 +44,21 @@ void main()
         int x1 = x0 + 1;
         int y1 = y0 + 1;
 
-        if (x0 < 0 || y0 < 0 || x0 >= p.w - 1 || y0 >= p.h - 1)
-        {
-            v = afp(0.f);
-        }
-        else
-        {
-            afp alpha = sample_x - afp(x0);
-            afp beta = sample_y - afp(y0);
+        x0 = clamp(x0, 0, p.w - 1);
+        y0 = clamp(y0, 0, p.h - 1);
 
-            afp v0 = buffer_ld1(image_blob_data, gz * p.cstep + y0 * p.w + x0);
-            afp v1 = buffer_ld1(image_blob_data, gz * p.cstep + y0 * p.w + x1);
-            afp v2 = buffer_ld1(image_blob_data, gz * p.cstep + y1 * p.w + x0);
-            afp v3 = buffer_ld1(image_blob_data, gz * p.cstep + y1 * p.w + x1);
+        afp alpha = sample_x - afp(x0);
+        afp beta = sample_y - afp(y0);
 
-            afp v4 = v0 * (afp(1.f) - alpha) + v1 * alpha;
-            afp v5 = v2 * (afp(1.f) - alpha) + v3 * alpha;
+        afp v0 = buffer_ld1(image_blob_data, gz * p.cstep + y0 * p.w + x0);
+        afp v1 = buffer_ld1(image_blob_data, gz * p.cstep + y0 * p.w + x1);
+        afp v2 = buffer_ld1(image_blob_data, gz * p.cstep + y1 * p.w + x0);
+        afp v3 = buffer_ld1(image_blob_data, gz * p.cstep + y1 * p.w + x1);
 
-            v = v4 * (afp(1.f) - beta) + v5 * beta;
-        }
+        afp v4 = v0 * (afp(1.f) - alpha) + v1 * alpha;
+        afp v5 = v2 * (afp(1.f) - alpha) + v3 * alpha;
+
+        v = v4 * (afp(1.f) - beta) + v5 * beta;
     }
 
     const int gi = gz * p.cstep + gy * p.w + gx;

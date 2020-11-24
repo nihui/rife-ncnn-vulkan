@@ -107,25 +107,21 @@ int Warp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     int x0 = floor(sample_x);
                     int y0 = floor(sample_y);
 
-                    if (x0 < 0 || y0 < 0 || x0 >= w - 1 || y0 >= h - 1)
-                    {
-                        v = 0.f;
-                    }
-                    else
-                    {
-                        float alpha = sample_x - x0;
-                        float beta = sample_y - y0;
+                    x0 = std::min(std::max(x0, 0), w - 1);
+                    y0 = std::min(std::max(y0, 0), h - 1);
 
-                        float v0 = image.row(y0)[x0];
-                        float v1 = image.row(y0)[x0 + 1];
-                        float v2 = image.row(y0 + 1)[x0];
-                        float v3 = image.row(y0 + 1)[x0 + 1];
+                    float alpha = sample_x - x0;
+                    float beta = sample_y - y0;
 
-                        float v4 = v0 * (1 - alpha) + v1 * alpha;
-                        float v5 = v2 * (1 - alpha) + v3 * alpha;
+                    float v0 = image.row(y0)[x0];
+                    float v1 = image.row(y0)[x0 + 1];
+                    float v2 = image.row(y0 + 1)[x0];
+                    float v3 = image.row(y0 + 1)[x0 + 1];
 
-                        v = v4 * (1 - beta) + v5 * beta;
-                    }
+                    float v4 = v0 * (1 - alpha) + v1 * alpha;
+                    float v5 = v2 * (1 - alpha) + v3 * alpha;
+
+                    v = v4 * (1 - beta) + v5 * beta;
                 }
 
                 outptr[0] = v;

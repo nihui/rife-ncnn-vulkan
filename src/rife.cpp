@@ -329,7 +329,7 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.input("8", ctx1[1]);
                 ex.input("9", ctx1[2]);
                 ex.input("10", ctx1[3]);
-                ex.extract("188", out_gpu_padded, cmd);
+                ex.extract("200", out_gpu_padded, cmd);
             }
 
             // postproc
