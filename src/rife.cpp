@@ -329,6 +329,20 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.input("8", ctx1[1]);
                 ex.input("9", ctx1[2]);
                 ex.input("10", ctx1[3]);
+
+                // save some memory
+                in0_tile_gpu.release();
+                in1_tile_gpu.release();
+                flow.release();
+                ctx0[0].release();
+                ctx0[1].release();
+                ctx0[2].release();
+                ctx0[3].release();
+                ctx1[0].release();
+                ctx1[1].release();
+                ctx1[2].release();
+                ctx1[3].release();
+
                 ex.extract("200", out_gpu_padded, cmd);
             }
 

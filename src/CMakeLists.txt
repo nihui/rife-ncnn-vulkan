@@ -219,6 +219,7 @@ rife_add_shader(rife_preproc.comp)
 rife_add_shader(rife_postproc.comp)
 rife_add_shader(warp.comp)
 rife_add_shader(warp_pack4.comp)
+rife_add_shader(warp_pack8.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 

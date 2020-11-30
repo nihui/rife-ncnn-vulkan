@@ -4,6 +4,7 @@
 
 #include "warp.comp.hex.h"
 #include "warp_pack4.comp.hex.h"
+#include "warp_pack8.comp.hex.h"
 
 using namespace ncnn;
 
@@ -13,6 +14,7 @@ Warp::Warp()
 
     pipeline_warp = 0;
     pipeline_warp_pack4 = 0;
+    pipeline_warp_pack8 = 0;
 }
 
 int Warp::create_pipeline(const Option& opt)
@@ -53,6 +55,24 @@ int Warp::create_pipeline(const Option& opt)
         pipeline_warp_pack4->create(spirv.data(), spirv.size() * 4, specializations);
     }
 
+    // pack8
+    if (opt.use_shader_pack8)
+    {
+        static std::vector<uint32_t> spirv;
+        static ncnn::Mutex lock;
+        {
+            ncnn::MutexLockGuard guard(lock);
+            if (spirv.empty())
+            {
+                compile_spirv_module(warp_pack8_comp_data, sizeof(warp_pack8_comp_data), opt, spirv);
+            }
+        }
+
+        pipeline_warp_pack8 = new Pipeline(vkdev);
+        pipeline_warp_pack8->set_optimal_local_size_xyz();
+        pipeline_warp_pack8->create(spirv.data(), spirv.size() * 4, specializations);
+    }
+
     return 0;
 }
 
@@ -63,6 +83,9 @@ int Warp::destroy_pipeline(const Option& opt)
 
     delete pipeline_warp_pack4;
     pipeline_warp_pack4 = 0;
+
+    delete pipeline_warp_pack8;
+    pipeline_warp_pack8 = 0;
 
     return 0;
 }
@@ -164,7 +187,11 @@ int Warp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& to
     constants[2].i = top_blob.c;
     constants[3].i = top_blob.cstep;
 
-    if (elempack == 4)
+    if (elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_warp_pack8, bindings, constants, top_blob);
+    }
+    else if (elempack == 4)
     {
         cmd.record_pipeline(pipeline_warp_pack4, bindings, constants, top_blob);
     }
