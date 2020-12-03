@@ -277,7 +277,7 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
 
                 ex.input("input0", in0_tile_gpu);
                 ex.input("input1", in1_tile_gpu);
-                ex.extract("758", flow, cmd);
+                ex.extract("flow", flow, cmd);
             }
 
             // contextnet
@@ -291,10 +291,10 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
 
                 ex.input("input.1", in0_tile_gpu);
                 ex.input("flow.0", flow);
-                ex.extract("63", ctx0[0], cmd);
-                ex.extract("97", ctx0[1], cmd);
-                ex.extract("131", ctx0[2], cmd);
-                ex.extract("165", ctx0[3], cmd);
+                ex.extract("f1", ctx0[0], cmd);
+                ex.extract("f2", ctx0[1], cmd);
+                ex.extract("f3", ctx0[2], cmd);
+                ex.extract("f4", ctx0[3], cmd);
             }
             {
                 ncnn::Extractor ex = contextnet.create_extractor();
@@ -304,10 +304,10 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
 
                 ex.input("input.1", in1_tile_gpu);
                 ex.input("flow.1", flow);
-                ex.extract("63", ctx1[0], cmd);
-                ex.extract("97", ctx1[1], cmd);
-                ex.extract("131", ctx1[2], cmd);
-                ex.extract("165", ctx1[3], cmd);
+                ex.extract("f1", ctx1[0], cmd);
+                ex.extract("f2", ctx1[1], cmd);
+                ex.extract("f3", ctx1[2], cmd);
+                ex.extract("f4", ctx1[3], cmd);
             }
 
             // fusionnet
@@ -343,7 +343,7 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ctx1[2].release();
                 ctx1[3].release();
 
-                ex.extract("200", out_gpu_padded, cmd);
+                ex.extract("output", out_gpu_padded, cmd);
             }
 
             // postproc

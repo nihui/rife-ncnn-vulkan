@@ -98,4 +98,4 @@ BinaryOp                 Sub_103                  1 1 189_splitncnn_0 192 0=7 1=
 BinaryOp                 Mul_104                  2 1 89_splitncnn_0 192 193 0=2
 BinaryOp                 Add_105                  2 1 190 193 194
 BinaryOp                 Add_106                  2 1 194 184 195
-Clip                     Clip_107                 1 1 195 200 0=0.000000e+00 1=1.000000e+00
+Clip                     Clip_107                 1 1 195 output 0=0.000000e+00 1=1.000000e+00

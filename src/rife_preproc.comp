@@ -47,9 +47,11 @@ void main()
     int x = gx - p.pad_x + p.crop_x;
     int y = gy - p.pad_y;
 
-    // border replicate
-    x = clamp(x, 0, p.w - 1);
-    y = clamp(y, 0, p.h - 1);
+    if (x < 0 || x >= p.w || y < 0 || y >= p.h)
+    {
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(0.f);
+        return;
+    }
 
 #if NCNN_int8_storage
     int v_offset = y * p.w + x;

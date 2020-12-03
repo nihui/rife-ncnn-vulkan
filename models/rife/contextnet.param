@@ -17,7 +17,7 @@ BinaryOp                 Mul_10                   2 1 46_splitncnn_0 53 54 0=2
 BinaryOp                 Add_11                   2 1 54 42 55
 PReLU                    PRelu_12                 1 1 55 57 0=16
 Split                    splitncnn_1              1 3 57 57_splitncnn_0 57_splitncnn_1 57_splitncnn_2
-rife.Warp                Warp_18                  2 1 57_splitncnn_2 flow.1_splitncnn_1 63
+rife.Warp                Warp_18                  2 1 57_splitncnn_2 flow.1_splitncnn_1 f1
 Convolution              Conv_19                  1 1 57_splitncnn_1 64 0=32 1=3 3=2 4=1 6=4608
 Convolution              Conv_20                  1 1 57_splitncnn_0 65 0=32 1=3 3=2 4=1 5=1 6=4608
 PReLU                    PRelu_21                 1 1 65 67 0=32
@@ -33,7 +33,7 @@ Split                    splitncnn_3              1 3 79 79_splitncnn_0 79_split
 Interp                   Resize_33                1 1 flow.1_splitncnn_0 89 0=2 1=5.000000e-01 2=5.000000e-01
 BinaryOp                 Mul_35                   1 1 89 91 0=2 1=1 2=5.000000e-01
 Split                    splitncnn_4              1 2 91 91_splitncnn_0 91_splitncnn_1
-rife.Warp                Warp_41                  2 1 79_splitncnn_2 91_splitncnn_1 97
+rife.Warp                Warp_41                  2 1 79_splitncnn_2 91_splitncnn_1 f2
 Convolution              Conv_42                  1 1 79_splitncnn_1 98 0=64 1=3 3=2 4=1 6=18432
 Convolution              Conv_43                  1 1 79_splitncnn_0 99 0=64 1=3 3=2 4=1 5=1 6=18432
 PReLU                    PRelu_44                 1 1 99 101 0=64
@@ -49,7 +49,7 @@ Split                    splitncnn_6              1 3 113 113_splitncnn_0 113_sp
 Interp                   Resize_56                1 1 91_splitncnn_0 123 0=2 1=5.000000e-01 2=5.000000e-01
 BinaryOp                 Mul_58                   1 1 123 125 0=2 1=1 2=5.000000e-01
 Split                    splitncnn_7              1 2 125 125_splitncnn_0 125_splitncnn_1
-rife.Warp                Warp_64                  2 1 113_splitncnn_2 125_splitncnn_1 131
+rife.Warp                Warp_64                  2 1 113_splitncnn_2 125_splitncnn_1 f3
 Convolution              Conv_65                  1 1 113_splitncnn_1 132 0=128 1=3 3=2 4=1 6=73728
 Convolution              Conv_66                  1 1 113_splitncnn_0 133 0=128 1=3 3=2 4=1 5=1 6=73728
 PReLU                    PRelu_67                 1 1 133 135 0=128
@@ -63,4 +63,4 @@ BinaryOp                 Add_76                   2 1 144 132 145
 PReLU                    PRelu_77                 1 1 145 147 0=128
 Interp                   Resize_79                1 1 125_splitncnn_0 157 0=2 1=5.000000e-01 2=5.000000e-01
 BinaryOp                 Mul_81                   1 1 157 159 0=2 1=1 2=5.000000e-01
-rife.Warp                Warp_87                  2 1 147 159 165
+rife.Warp                Warp_87                  2 1 147 159 f4

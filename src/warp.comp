@@ -46,6 +46,8 @@ void main()
 
         x0 = clamp(x0, 0, p.w - 1);
         y0 = clamp(y0, 0, p.h - 1);
+        x1 = clamp(x1, 0, p.w - 1);
+        y1 = clamp(y1, 0, p.h - 1);
 
         afp alpha = sample_x - afp(x0);
         afp beta = sample_y - afp(y0);

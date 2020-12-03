@@ -236,4 +236,4 @@ PReLU                    PRelu_323                1 1 752 754 0=64
 Convolution              Conv_324                 1 1 754 755 0=8 1=3 4=1 5=1 6=4608
 PixelShuffle             DepthToSpace_325         1 1 755 756 0=2
 BinaryOp                 Add_326                  2 1 471_splitncnn_0 623_splitncnn_0 757
-BinaryOp                 Add_327                  2 1 757 756 758
+BinaryOp                 Add_327                  2 1 757 756 flow
