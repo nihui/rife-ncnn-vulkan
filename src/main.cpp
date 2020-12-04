@@ -109,7 +109,6 @@ static void print_usage()
     fprintf(stderr, "  -1 input1-path       input image1 path (jpg/png/webp)\n");
     fprintf(stderr, "  -i input-path        input image directory (jpg/png/webp)\n");
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
-    fprintf(stderr, "  -t tile-size         tile size (>=128, default=512) can be 256,256,128 for multi-gpu\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
     fprintf(stderr, "  -f format            output image format (jpg/png/webp, default=ext/png)\n");
@@ -441,7 +440,6 @@ int main(int argc, char** argv)
     path_t input1path;
     path_t inputpath;
     path_t outputpath;
-    std::vector<int> tilesize;
     std::vector<int> gpuid;
     int jobs_load = 1;
     std::vector<int> jobs_proc;
@@ -452,7 +450,7 @@ int main(int argc, char** argv)
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:t:g:j:f:vh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:g:j:f:vh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -467,9 +465,6 @@ int main(int argc, char** argv)
             break;
         case L'o':
             outputpath = optarg;
-            break;
-        case L't':
-            tilesize = parse_optarg_int_array(optarg);
             break;
         case L'g':
             gpuid = parse_optarg_int_array(optarg);
@@ -492,7 +487,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:t:g:j:f:vh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:g:j:f:vh")) != -1)
     {
         switch (opt)
         {
@@ -507,9 +502,6 @@ int main(int argc, char** argv)
             break;
         case 'o':
             outputpath = optarg;
-            break;
-        case 't':
-            tilesize = parse_optarg_int_array(optarg);
             break;
         case 'g':
             gpuid = parse_optarg_int_array(optarg);
@@ -536,21 +528,6 @@ int main(int argc, char** argv)
     {
         print_usage();
         return -1;
-    }
-
-    if (tilesize.size() != (gpuid.empty() ? 1 : gpuid.size()) && !tilesize.empty())
-    {
-        fprintf(stderr, "invalid tilesize argument\n");
-        return -1;
-    }
-
-    for (int i=0; i<(int)tilesize.size(); i++)
-    {
-        if (tilesize[i] < 128 || tilesize[i] % 32 != 0)
-        {
-            fprintf(stderr, "invalid tilesize argument, must be >= 128, must be multiple of 32\n");
-            return -1;
-        }
     }
 
     if (jobs_load < 1 || jobs_save < 1)
@@ -699,11 +676,6 @@ int main(int argc, char** argv)
         jobs_proc.resize(use_gpu_count, 2);
     }
 
-    if (tilesize.empty())
-    {
-        tilesize.resize(use_gpu_count, 512);
-    }
-
     int cpu_count = std::max(1, ncnn::get_cpu_count());
     jobs_load = std::min(jobs_load, cpu_count);
     jobs_save = std::min(jobs_save, cpu_count);
@@ -736,8 +708,6 @@ int main(int argc, char** argv)
             rife[i] = new RIFE(gpuid[i]);
 
             rife[i]->load();
-
-            rife[i]->tilesize = tilesize[i];
         }
 
         // main routine
