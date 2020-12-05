@@ -156,4 +156,12 @@ static path_t sanitize_filepath(const path_t& path)
     return get_executable_directory() + path;
 }
 
+static path_t sanitize_dirpath(const path_t& path)
+{
+    if (path_is_directory(path))
+        return path;
+
+    return get_executable_directory() + path;
+}
+
 #endif // FILESYSTEM_UTILS_H

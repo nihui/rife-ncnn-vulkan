@@ -109,9 +109,10 @@ static void print_usage()
     fprintf(stderr, "  -1 input1-path       input image1 path (jpg/png/webp)\n");
     fprintf(stderr, "  -i input-path        input image directory (jpg/png/webp)\n");
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
+    fprintf(stderr, "  -m model-path        rife model path (default=rife-HD)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
-    fprintf(stderr, "  -f format            output image format (jpg/png/webp, default=ext/png)\n");
+    fprintf(stderr, "  -f pattern-format    output image filename pattern format (%%08d.jpg/png/webp, default=ext/%%08d.png)\n");
 }
 
 static int decode_image(const path_t& imagepath, ncnn::Mat& image, int* webp)
@@ -440,17 +441,18 @@ int main(int argc, char** argv)
     path_t input1path;
     path_t inputpath;
     path_t outputpath;
+    path_t model = PATHSTR("rife-HD");
     std::vector<int> gpuid;
     int jobs_load = 1;
     std::vector<int> jobs_proc;
     int jobs_save = 2;
     int verbose = 0;
-    path_t format = PATHSTR("png");
+    path_t pattern_format = PATHSTR("%08d.png");
 
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:g:j:f:vh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -466,6 +468,9 @@ int main(int argc, char** argv)
         case L'o':
             outputpath = optarg;
             break;
+        case L'm':
+            model = optarg;
+            break;
         case L'g':
             gpuid = parse_optarg_int_array(optarg);
             break;
@@ -474,7 +479,7 @@ int main(int argc, char** argv)
             jobs_proc = parse_optarg_int_array(wcschr(optarg, L':') + 1);
             break;
         case L'f':
-            format = optarg;
+            pattern_format = optarg;
             break;
         case L'v':
             verbose = 1;
@@ -487,7 +492,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:g:j:f:vh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vh")) != -1)
     {
         switch (opt)
         {
@@ -503,6 +508,9 @@ int main(int argc, char** argv)
         case 'o':
             outputpath = optarg;
             break;
+        case 'm':
+            model = optarg;
+            break;
         case 'g':
             gpuid = parse_optarg_int_array(optarg);
             break;
@@ -511,7 +519,7 @@ int main(int argc, char** argv)
             jobs_proc = parse_optarg_int_array(strchr(optarg, ':') + 1);
             break;
         case 'f':
-            format = optarg;
+            pattern_format = optarg;
             break;
         case 'v':
             verbose = 1;
@@ -549,6 +557,20 @@ int main(int argc, char** argv)
             fprintf(stderr, "invalid jobs_proc thread count argument\n");
             return -1;
         }
+    }
+
+    path_t pattern = get_file_name_without_extension(pattern_format);
+    path_t format = get_file_extension(pattern_format);
+
+    if (format.empty())
+    {
+        pattern = PATHSTR("%08d");
+        format = pattern_format;
+    }
+
+    if (pattern.empty())
+    {
+        pattern = PATHSTR("%08d");
     }
 
     if (!path_is_directory(outputpath))
@@ -627,13 +649,12 @@ int main(int argc, char** argv)
                 path_t filename0 = filenames[sx];
                 path_t filename1 = filenames[sx + 1];
 
-                // TODO provide option to specify output filename scheme
 #if _WIN32
                 wchar_t tmp[256];
-                swprintf(tmp, L"%06d", i+1);
+                swprintf(tmp, pattern.c_str(), i+1);
 #else
                 char tmp[256];
-                sprintf(tmp, "%06d", i+1); // ffmpeg start from 1
+                sprintf(tmp, pattern.c_str(), i+1); // ffmpeg start from 1
 #endif
                 path_t output_filename = path_t(tmp) + PATHSTR('.') + format;
 
@@ -657,6 +678,18 @@ int main(int argc, char** argv)
             return -1;
         }
     }
+
+    if (model.find(PATHSTR("rife")) != path_t::npos)
+    {
+        // fine
+    }
+    else
+    {
+        fprintf(stderr, "unknown model dir type\n");
+        return -1;
+    }
+
+    path_t modeldir = sanitize_dirpath(model);
 
 #if _WIN32
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -707,7 +740,7 @@ int main(int argc, char** argv)
         {
             rife[i] = new RIFE(gpuid[i]);
 
-            rife[i]->load();
+            rife[i]->load(modeldir);
         }
 
         // main routine

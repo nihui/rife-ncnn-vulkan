@@ -29,7 +29,55 @@ RIFE::~RIFE()
     }
 }
 
-int RIFE::load()
+#if _WIN32
+static void load_param_model(ncnn::Net& net, const std::wstring& modeldir, const wchar_t* name)
+{
+    wchar_t parampath[256];
+    wchar_t modelpath[256];
+    swprintf(parampath, 256, L"%s/%s.param", modeldir.c_str(), name);
+    swprintf(modelpath, 256, L"%s/%s.bin", modeldir.c_str(), name);
+
+    {
+        FILE* fp = _wfopen(parampath, L"rb");
+        if (!fp)
+        {
+            fwprintf(stderr, L"_wfopen %ls failed\n", parampath);
+        }
+
+        net.load_param(fp);
+
+        fclose(fp);
+    }
+    {
+        FILE* fp = _wfopen(modelpath, L"rb");
+        if (!fp)
+        {
+            fwprintf(stderr, L"_wfopen %ls failed\n", modelpath);
+        }
+
+        net.load_model(fp);
+
+        fclose(fp);
+    }
+}
+#else
+static void load_param_model(ncnn::Net& net, const std::string& modeldir, const char* name)
+{
+    char parampath[256];
+    char modelpath[256];
+    sprintf(parampath, "%s/%s.param", modeldir.c_str(), name);
+    sprintf(modelpath, "%s/%s.bin", modeldir.c_str(), name);
+
+    net.load_param(parampath);
+    net.load_model(modelpath);
+}
+#endif
+
+#if _WIN32
+int RIFE::load(const std::wstring& modeldir)
+#else
+int RIFE::load(const std::string& modeldir)
+#endif
 {
     ncnn::Option opt;
     opt.use_vulkan_compute = true;
@@ -50,14 +98,15 @@ int RIFE::load()
     contextnet.register_custom_layer("rife.Warp", Warp_layer_creator);
     fusionnet.register_custom_layer("rife.Warp", Warp_layer_creator);
 
-    flownet.load_param("flownet.param");
-    flownet.load_model("flownet.bin");
-
-    contextnet.load_param("contextnet.param");
-    contextnet.load_model("contextnet.bin");
-
-    fusionnet.load_param("fusionnet.param");
-    fusionnet.load_model("fusionnet.bin");
+#if _WIN32
+    load_param_model(flownet, modeldir, L"flownet");
+    load_param_model(contextnet, modeldir, L"contextnet");
+    load_param_model(fusionnet, modeldir, L"fusionnet");
+#else
+    load_param_model(flownet, modeldir, "flownet");
+    load_param_model(contextnet, modeldir, "contextnet");
+    load_param_model(fusionnet, modeldir, "fusionnet");
+#endif
 
     // initialize preprocess and postprocess pipeline
     {
@@ -166,16 +215,6 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
     {
         cmd.record_clone(in0, in0_gpu, opt);
         cmd.record_clone(in1, in1_gpu, opt);
-    }
-
-    ncnn::VkMat out_gpu;
-    if (opt.use_fp16_storage && opt.use_int8_storage)
-    {
-        out_gpu.create(w, h, (size_t)channels, 1, blob_vkallocator);
-    }
-    else
-    {
-        out_gpu.create(w, h, channels, (size_t)4u, 1, blob_vkallocator);
     }
 
     // preproc
@@ -293,6 +332,16 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
         ctx1[3].release();
 
         ex.extract("output", out_gpu_padded, cmd);
+    }
+
+    ncnn::VkMat out_gpu;
+    if (opt.use_fp16_storage && opt.use_int8_storage)
+    {
+        out_gpu.create(w, h, (size_t)channels, 1, blob_vkallocator);
+    }
+    else
+    {
+        out_gpu.create(w, h, channels, (size_t)4u, 1, blob_vkallocator);
     }
 
     // postproc
