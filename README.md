@@ -74,6 +74,7 @@ Usage: rife-ncnn-vulkan -0 infile -1 infile1 -o outfile [options]...
   -m model-path        rife model path (default=rife-HD)
   -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu
   -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu
+  -x                   enable tta mode
   -f pattern-format    output image filename pattern format (%08d.jpg/png/webp, default=ext/%08d.png)
 ```
 
@@ -122,7 +123,6 @@ cmake --build . -j 4
 
 ### TODO
 
-* test-time sptial augmentation aka TTA-s
 * test-time temporal augmentation aka TTA-t
 
 ### Model
@@ -141,13 +141,21 @@ cmake --build . -j 4
 ![origin0](images/0.png)
 ![origin1](images/1.png)
 
-### Interpolate with rife rife-HD model
+### Interpolate with rife rife-anime model
 
 ```shell
-rife-ncnn-vulkan.exe -m models/rife-HD -0 0.png -1 1.png -o out.png
+rife-ncnn-vulkan.exe -m models/rife-anime -0 0.png -1 1.png -o out.png
 ```
 
-![cain](images/out.png)
+![rife](images/out.png)
+
+### Interpolate with rife rife-anime model + TTA-s
+
+```shell
+rife-ncnn-vulkan.exe -m models/rife-anime -x -0 0.png -1 1.png -o out.png
+```
+
+![rife](images/outx.png)
 
 ## Original RIFE Project
 

@@ -112,6 +112,7 @@ static void print_usage()
     fprintf(stderr, "  -m model-path        rife model path (default=rife-HD)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
+    fprintf(stdout, "  -x                   enable tta mode\n");
     fprintf(stderr, "  -f pattern-format    output image filename pattern format (%%08d.jpg/png/webp, default=ext/%%08d.png)\n");
 }
 
@@ -447,12 +448,13 @@ int main(int argc, char** argv)
     std::vector<int> jobs_proc;
     int jobs_save = 2;
     int verbose = 0;
+    int tta_mode = 0;
     path_t pattern_format = PATHSTR("%08d.png");
 
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vxh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -484,6 +486,9 @@ int main(int argc, char** argv)
         case L'v':
             verbose = 1;
             break;
+        case L'x':
+            tta_mode = 1;
+            break;
         case L'h':
         default:
             print_usage();
@@ -492,7 +497,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vxh")) != -1)
     {
         switch (opt)
         {
@@ -523,6 +528,9 @@ int main(int argc, char** argv)
             break;
         case 'v':
             verbose = 1;
+            break;
+        case 'x':
+            tta_mode = 1;
             break;
         case 'h':
         default:
@@ -728,7 +736,7 @@ int main(int argc, char** argv)
     int total_jobs_proc = 0;
     for (int i=0; i<use_gpu_count; i++)
     {
-        int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count;
+        int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count();
         jobs_proc[i] = std::min(jobs_proc[i], gpu_queue_count);
         total_jobs_proc += jobs_proc[i];
     }
@@ -738,7 +746,7 @@ int main(int argc, char** argv)
 
         for (int i=0; i<use_gpu_count; i++)
         {
-            rife[i] = new RIFE(gpuid[i]);
+            rife[i] = new RIFE(gpuid[i], tta_mode);
 
             rife[i]->load(modeldir);
         }

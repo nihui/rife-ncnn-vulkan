@@ -11,7 +11,7 @@
 class RIFE
 {
 public:
-    RIFE(int gpuid);
+    RIFE(int gpuid, bool tta_mode = false);
     ~RIFE();
 
 #if _WIN32
@@ -29,6 +29,8 @@ private:
     ncnn::Net fusionnet;
     ncnn::Pipeline* rife_preproc;
     ncnn::Pipeline* rife_postproc;
+    ncnn::Pipeline* rife_flow_tta_avg;
+    bool tta_mode;
 };
 
 #endif // RIFE_H
