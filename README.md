@@ -133,7 +133,7 @@ cmake --build . -j 4
 | rife | 1.2 |
 | rife-HD | 1.5 |
 | rife-UHD | 1.6 |
-| rife-anime | 1.7 |
+| rife-anime | 1.8 |
 
 ## Sample Images
 
