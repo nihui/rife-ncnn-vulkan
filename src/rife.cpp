@@ -16,13 +16,17 @@
 
 DEFINE_LAYER_CREATOR(Warp)
 
-RIFE::RIFE(int gpuid, bool _tta_mode)
+RIFE::RIFE(int gpuid, bool _tta_mode, bool _uhd_mode)
 {
     vkdev = ncnn::get_gpu_device(gpuid);
     rife_preproc = 0;
     rife_postproc = 0;
     rife_flow_tta_avg = 0;
+    rife_uhd_downscale_image = 0;
+    rife_uhd_upscale_flow = 0;
+    rife_uhd_double_flow = 0;
     tta_mode = _tta_mode;
+    uhd_mode = _uhd_mode;
 }
 
 RIFE::~RIFE()
@@ -32,6 +36,18 @@ RIFE::~RIFE()
         delete rife_preproc;
         delete rife_postproc;
         delete rife_flow_tta_avg;
+    }
+
+    if (uhd_mode)
+    {
+        rife_uhd_downscale_image->destroy_pipeline(flownet.opt);
+        delete rife_uhd_downscale_image;
+
+        rife_uhd_upscale_flow->destroy_pipeline(flownet.opt);
+        delete rife_uhd_upscale_flow;
+
+        rife_uhd_double_flow->destroy_pipeline(flownet.opt);
+        delete rife_uhd_double_flow;
     }
 }
 
@@ -181,6 +197,46 @@ int RIFE::load(const std::string& modeldir)
         rife_flow_tta_avg->create(spirv.data(), spirv.size() * 4, specializations);
     }
 
+    if (uhd_mode)
+    {
+        {
+            rife_uhd_downscale_image = ncnn::create_layer("Interp");
+            rife_uhd_downscale_image->vkdev = vkdev;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 2);// bilinear
+            pd.set(1, 0.5f);
+            pd.set(2, 0.5f);
+            rife_uhd_downscale_image->load_param(pd);
+
+            rife_uhd_downscale_image->create_pipeline(opt);
+        }
+        {
+            rife_uhd_upscale_flow = ncnn::create_layer("Interp");
+            rife_uhd_upscale_flow->vkdev = vkdev;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 2);// bilinear
+            pd.set(1, 2.f);
+            pd.set(2, 2.f);
+            rife_uhd_upscale_flow->load_param(pd);
+
+            rife_uhd_upscale_flow->create_pipeline(opt);
+        }
+        {
+            rife_uhd_double_flow = ncnn::create_layer("BinaryOp");
+            rife_uhd_double_flow->vkdev = vkdev;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 2);// mul
+            pd.set(1, 1);// with_scalar
+            pd.set(2, 2.f);// b
+            rife_uhd_double_flow->load_param(pd);
+
+            rife_uhd_double_flow->create_pipeline(opt);
+        }
+    }
+
     return 0;
 }
 
@@ -328,9 +384,30 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.set_workspace_vkallocator(blob_vkallocator);
                 ex.set_staging_vkallocator(staging_vkallocator);
 
-                ex.input("input0", in0_gpu_padded[ti]);
-                ex.input("input1", in1_gpu_padded[ti]);
-                ex.extract("flow", flow[ti], cmd);
+                if (uhd_mode)
+                {
+                    ncnn::VkMat in0_gpu_padded_downscaled;
+                    ncnn::VkMat in1_gpu_padded_downscaled;
+                    rife_uhd_downscale_image->forward(in0_gpu_padded[ti], in0_gpu_padded_downscaled, cmd, opt);
+                    rife_uhd_downscale_image->forward(in1_gpu_padded[ti], in1_gpu_padded_downscaled, cmd, opt);
+
+                    ex.input("input0", in0_gpu_padded_downscaled);
+                    ex.input("input1", in1_gpu_padded_downscaled);
+
+                    ncnn::VkMat flow_downscaled;
+                    ex.extract("flow", flow_downscaled, cmd);
+
+                    ncnn::VkMat flow_half;
+                    rife_uhd_upscale_flow->forward(flow_downscaled, flow_half, cmd, opt);
+
+                    rife_uhd_double_flow->forward(flow_half, flow[ti], cmd, opt);
+                }
+                else
+                {
+                    ex.input("input0", in0_gpu_padded[ti]);
+                    ex.input("input1", in1_gpu_padded[ti]);
+                    ex.extract("flow", flow[ti], cmd);
+                }
             }
         }
 
@@ -516,9 +593,30 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
             ex.set_workspace_vkallocator(blob_vkallocator);
             ex.set_staging_vkallocator(staging_vkallocator);
 
-            ex.input("input0", in0_gpu_padded);
-            ex.input("input1", in1_gpu_padded);
-            ex.extract("flow", flow, cmd);
+            if (uhd_mode)
+            {
+                ncnn::VkMat in0_gpu_padded_downscaled;
+                ncnn::VkMat in1_gpu_padded_downscaled;
+                rife_uhd_downscale_image->forward(in0_gpu_padded, in0_gpu_padded_downscaled, cmd, opt);
+                rife_uhd_downscale_image->forward(in1_gpu_padded, in1_gpu_padded_downscaled, cmd, opt);
+
+                ex.input("input0", in0_gpu_padded_downscaled);
+                ex.input("input1", in1_gpu_padded_downscaled);
+
+                ncnn::VkMat flow_downscaled;
+                ex.extract("flow", flow_downscaled, cmd);
+
+                ncnn::VkMat flow_half;
+                rife_uhd_upscale_flow->forward(flow_downscaled, flow_half, cmd, opt);
+
+                rife_uhd_double_flow->forward(flow_half, flow, cmd, opt);
+            }
+            else
+            {
+                ex.input("input0", in0_gpu_padded);
+                ex.input("input1", in1_gpu_padded);
+                ex.extract("flow", flow, cmd);
+            }
         }
 
         // contextnet

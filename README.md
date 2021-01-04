@@ -75,6 +75,7 @@ Usage: rife-ncnn-vulkan -0 infile -1 infile1 -o outfile [options]...
   -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu
   -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu
   -x                   enable tta mode
+  -u                   enable UHD mode
   -f pattern-format    output image filename pattern format (%08d.jpg/png/webp, default=ext/%08d.png)
 ```
 

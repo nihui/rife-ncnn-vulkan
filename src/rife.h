@@ -11,7 +11,7 @@
 class RIFE
 {
 public:
-    RIFE(int gpuid, bool tta_mode = false);
+    RIFE(int gpuid, bool tta_mode = false, bool uhd_mode = false);
     ~RIFE();
 
 #if _WIN32
@@ -30,7 +30,11 @@ private:
     ncnn::Pipeline* rife_preproc;
     ncnn::Pipeline* rife_postproc;
     ncnn::Pipeline* rife_flow_tta_avg;
+    ncnn::Layer* rife_uhd_downscale_image;
+    ncnn::Layer* rife_uhd_upscale_flow;
+    ncnn::Layer* rife_uhd_double_flow;
     bool tta_mode;
+    bool uhd_mode;
 };
 
 #endif // RIFE_H

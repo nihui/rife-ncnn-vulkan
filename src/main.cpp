@@ -113,6 +113,7 @@ static void print_usage()
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
     fprintf(stdout, "  -x                   enable tta mode\n");
+    fprintf(stdout, "  -u                   enable UHD mode\n");
     fprintf(stderr, "  -f pattern-format    output image filename pattern format (%%08d.jpg/png/webp, default=ext/%%08d.png)\n");
 }
 
@@ -449,12 +450,13 @@ int main(int argc, char** argv)
     int jobs_save = 2;
     int verbose = 0;
     int tta_mode = 0;
+    int uhd_mode = 0;
     path_t pattern_format = PATHSTR("%08d.png");
 
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vxh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vxuh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -489,6 +491,9 @@ int main(int argc, char** argv)
         case L'x':
             tta_mode = 1;
             break;
+        case L'u':
+            uhd_mode = 1;
+            break;
         case L'h':
         default:
             print_usage();
@@ -497,7 +502,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vxh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vxuh")) != -1)
     {
         switch (opt)
         {
@@ -531,6 +536,9 @@ int main(int argc, char** argv)
             break;
         case 'x':
             tta_mode = 1;
+            break;
+        case 'u':
+            uhd_mode = 1;
             break;
         case 'h':
         default:
@@ -746,7 +754,7 @@ int main(int argc, char** argv)
 
         for (int i=0; i<use_gpu_count; i++)
         {
-            rife[i] = new RIFE(gpuid[i], tta_mode);
+            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode);
 
             rife[i]->load(modeldir);
         }
