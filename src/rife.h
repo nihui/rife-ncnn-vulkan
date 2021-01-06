@@ -11,7 +11,7 @@
 class RIFE
 {
 public:
-    RIFE(int gpuid, bool tta_mode = false, bool uhd_mode = false);
+    RIFE(int gpuid, bool tta_mode = false, bool uhd_mode = false, int num_threads = 1);
     ~RIFE();
 
 #if _WIN32
@@ -21,6 +21,8 @@ public:
 #endif
 
     int process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const;
+
+    int process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const;
 
 private:
     ncnn::VulkanDevice* vkdev;
@@ -35,6 +37,7 @@ private:
     ncnn::Layer* rife_uhd_double_flow;
     bool tta_mode;
     bool uhd_mode;
+    int num_threads;
 };
 
 #endif // RIFE_H

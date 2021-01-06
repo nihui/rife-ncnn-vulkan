@@ -110,7 +110,7 @@ static void print_usage()
     fprintf(stderr, "  -i input-path        input image directory (jpg/png/webp)\n");
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
     fprintf(stderr, "  -m model-path        rife model path (default=rife-HD)\n");
-    fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
+    fprintf(stderr, "  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
     fprintf(stdout, "  -x                   enable tta mode\n");
     fprintf(stdout, "  -u                   enable UHD mode\n");
@@ -732,7 +732,7 @@ int main(int argc, char** argv)
     int gpu_count = ncnn::get_gpu_count();
     for (int i=0; i<use_gpu_count; i++)
     {
-        if (gpuid[i] < 0 || gpuid[i] >= gpu_count)
+        if (gpuid[i] < -1 || gpuid[i] >= gpu_count)
         {
             fprintf(stderr, "invalid gpu device\n");
 
@@ -744,9 +744,17 @@ int main(int argc, char** argv)
     int total_jobs_proc = 0;
     for (int i=0; i<use_gpu_count; i++)
     {
-        int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count();
-        jobs_proc[i] = std::min(jobs_proc[i], gpu_queue_count);
-        total_jobs_proc += jobs_proc[i];
+        if (gpuid[i] == -1)
+        {
+            jobs_proc[i] = std::min(jobs_proc[i], cpu_count);
+            total_jobs_proc += 1;
+        }
+        else
+        {
+            int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count();
+            jobs_proc[i] = std::min(jobs_proc[i], gpu_queue_count);
+            total_jobs_proc += jobs_proc[i];
+        }
     }
 
     {
@@ -754,7 +762,9 @@ int main(int argc, char** argv)
 
         for (int i=0; i<use_gpu_count; i++)
         {
-            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode);
+            int num_threads = gpuid[i] == -1 ? jobs_proc[i] : 1;
+
+            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode, num_threads);
 
             rife[i]->load(modeldir);
         }
@@ -783,9 +793,16 @@ int main(int argc, char** argv)
                 int total_jobs_proc_id = 0;
                 for (int i=0; i<use_gpu_count; i++)
                 {
-                    for (int j=0; j<jobs_proc[i]; j++)
+                    if (gpuid[i] == -1)
                     {
                         proc_threads[total_jobs_proc_id++] = new ncnn::Thread(proc, (void*)&ptp[i]);
+                    }
+                    else
+                    {
+                        for (int j=0; j<jobs_proc[i]; j++)
+                        {
+                            proc_threads[total_jobs_proc_id++] = new ncnn::Thread(proc, (void*)&ptp[i]);
+                        }
                     }
                 }
             }

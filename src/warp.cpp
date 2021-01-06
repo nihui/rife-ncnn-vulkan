@@ -19,6 +19,9 @@ Warp::Warp()
 
 int Warp::create_pipeline(const Option& opt)
 {
+    if (!vkdev)
+        return 0;
+
     std::vector<vk_specialization_type> specializations(0 + 0);
 
     // pack1
@@ -104,7 +107,7 @@ int Warp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* outptr = top_blob.channel(q);
@@ -129,17 +132,21 @@ int Warp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 {
                     int x0 = floor(sample_x);
                     int y0 = floor(sample_y);
+                    int x1 = x0 + 1;
+                    int y1 = y0 + 1;
 
                     x0 = std::min(std::max(x0, 0), w - 1);
                     y0 = std::min(std::max(y0, 0), h - 1);
+                    x1 = std::min(std::max(x1, 0), w - 1);
+                    y1 = std::min(std::max(y1, 0), h - 1);
 
                     float alpha = sample_x - x0;
                     float beta = sample_y - y0;
 
                     float v0 = image.row(y0)[x0];
-                    float v1 = image.row(y0)[x0 + 1];
-                    float v2 = image.row(y0 + 1)[x0];
-                    float v3 = image.row(y0 + 1)[x0 + 1];
+                    float v1 = image.row(y0)[x1];
+                    float v2 = image.row(y1)[x0];
+                    float v3 = image.row(y1)[x1];
 
                     float v4 = v0 * (1 - alpha) + v1 * alpha;
                     float v5 = v2 * (1 - alpha) + v3 * alpha;
