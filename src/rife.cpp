@@ -11,12 +11,13 @@
 #include "rife_preproc_tta.comp.hex.h"
 #include "rife_postproc_tta.comp.hex.h"
 #include "rife_flow_tta_avg.comp.hex.h"
+#include "rife_v2_flow_tta_avg.comp.hex.h"
 
 #include "rife_ops.h"
 
 DEFINE_LAYER_CREATOR(Warp)
 
-RIFE::RIFE(int gpuid, bool _tta_mode, bool _uhd_mode, int _num_threads)
+RIFE::RIFE(int gpuid, bool _tta_mode, bool _uhd_mode, int _num_threads, bool _rife_v2)
 {
     vkdev = gpuid == -1 ? 0 : ncnn::get_gpu_device(gpuid);
 
@@ -26,9 +27,11 @@ RIFE::RIFE(int gpuid, bool _tta_mode, bool _uhd_mode, int _num_threads)
     rife_uhd_downscale_image = 0;
     rife_uhd_upscale_flow = 0;
     rife_uhd_double_flow = 0;
+    rife_v2_slice_flow = 0;
     tta_mode = _tta_mode;
     uhd_mode = _uhd_mode;
     num_threads = _num_threads;
+    rife_v2 = _rife_v2;
 }
 
 RIFE::~RIFE()
@@ -50,6 +53,12 @@ RIFE::~RIFE()
 
         rife_uhd_double_flow->destroy_pipeline(flownet.opt);
         delete rife_uhd_double_flow;
+    }
+
+    if (rife_v2)
+    {
+        rife_v2_slice_flow->destroy_pipeline(flownet.opt);
+        delete rife_v2_slice_flow;
     }
 }
 
@@ -190,7 +199,14 @@ int RIFE::load(const std::string& modeldir)
             ncnn::MutexLockGuard guard(lock);
             if (spirv.empty())
             {
-                compile_spirv_module(rife_flow_tta_avg_comp_data, sizeof(rife_flow_tta_avg_comp_data), opt, spirv);
+                if (rife_v2)
+                {
+                    compile_spirv_module(rife_v2_flow_tta_avg_comp_data, sizeof(rife_v2_flow_tta_avg_comp_data), opt, spirv);
+                }
+                else
+                {
+                    compile_spirv_module(rife_flow_tta_avg_comp_data, sizeof(rife_flow_tta_avg_comp_data), opt, spirv);
+                }
             }
         }
 
@@ -238,6 +254,25 @@ int RIFE::load(const std::string& modeldir)
             rife_uhd_double_flow->load_param(pd);
 
             rife_uhd_double_flow->create_pipeline(opt);
+        }
+    }
+
+    if (rife_v2)
+    {
+        {
+            rife_v2_slice_flow = ncnn::create_layer("Slice");
+            rife_v2_slice_flow->vkdev = vkdev;
+
+            ncnn::Mat slice_points(2);
+            slice_points.fill<int>(-233);
+
+            ncnn::ParamDict pd;
+            pd.set(0, slice_points);
+            pd.set(1, 0);// axis
+
+            rife_v2_slice_flow->load_param(pd);
+
+            rife_v2_slice_flow->create_pipeline(opt);
         }
     }
 
@@ -422,6 +457,8 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
         }
 
         // avg flow
+        ncnn::VkMat flow0[8];
+        ncnn::VkMat flow1[8];
         {
             std::vector<ncnn::VkMat> bindings(8);
             bindings[0] = flow[0];
@@ -443,6 +480,19 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
             dispatcher.h = flow[0].h;
             dispatcher.c = 1;
             cmd.record_pipeline(rife_flow_tta_avg, bindings, constants, dispatcher);
+
+            if (rife_v2)
+            {
+                for (int ti = 0; ti < 8; ti++)
+                {
+                    std::vector<ncnn::VkMat> inputs(1);
+                    inputs[0] = flow[ti];
+                    std::vector<ncnn::VkMat> outputs(2);
+                    rife_v2_slice_flow->forward(inputs, outputs, cmd, opt);
+                    flow0[ti] = outputs[0];
+                    flow1[ti] = outputs[1];
+                }
+            }
         }
 
         ncnn::VkMat out_gpu_padded[8];
@@ -458,7 +508,14 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.set_staging_vkallocator(staging_vkallocator);
 
                 ex.input("input.1", in0_gpu_padded[ti]);
-                ex.input("flow.0", flow[ti]);
+                if (rife_v2)
+                {
+                    ex.input("flow.0", flow0[ti]);
+                }
+                else
+                {
+                    ex.input("flow.0", flow[ti]);
+                }
                 ex.extract("f1", ctx0[0], cmd);
                 ex.extract("f2", ctx0[1], cmd);
                 ex.extract("f3", ctx0[2], cmd);
@@ -471,7 +528,14 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.set_staging_vkallocator(staging_vkallocator);
 
                 ex.input("input.1", in1_gpu_padded[ti]);
-                ex.input("flow.1", flow[ti]);
+                if (rife_v2)
+                {
+                    ex.input("flow.0", flow1[ti]);
+                }
+                else
+                {
+                    ex.input("flow.1", flow[ti]);
+                }
                 ex.extract("f1", ctx1[0], cmd);
                 ex.extract("f2", ctx1[1], cmd);
                 ex.extract("f3", ctx1[2], cmd);
@@ -597,6 +661,8 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
 
         // flownet
         ncnn::VkMat flow;
+        ncnn::VkMat flow0;
+        ncnn::VkMat flow1;
         {
             ncnn::Extractor ex = flownet.create_extractor();
             ex.set_blob_vkallocator(blob_vkallocator);
@@ -627,6 +693,16 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
                 ex.input("input1", in1_gpu_padded);
                 ex.extract("flow", flow, cmd);
             }
+
+            if (rife_v2)
+            {
+                std::vector<ncnn::VkMat> inputs(1);
+                inputs[0] = flow;
+                std::vector<ncnn::VkMat> outputs(2);
+                rife_v2_slice_flow->forward(inputs, outputs, cmd, opt);
+                flow0 = outputs[0];
+                flow1 = outputs[1];
+            }
         }
 
         // contextnet
@@ -639,7 +715,14 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
             ex.set_staging_vkallocator(staging_vkallocator);
 
             ex.input("input.1", in0_gpu_padded);
-            ex.input("flow.0", flow);
+            if (rife_v2)
+            {
+                ex.input("flow.0", flow0);
+            }
+            else
+            {
+                ex.input("flow.0", flow);
+            }
             ex.extract("f1", ctx0[0], cmd);
             ex.extract("f2", ctx0[1], cmd);
             ex.extract("f3", ctx0[2], cmd);
@@ -652,7 +735,14 @@ int RIFE::process(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float ti
             ex.set_staging_vkallocator(staging_vkallocator);
 
             ex.input("input.1", in1_gpu_padded);
-            ex.input("flow.1", flow);
+            if (rife_v2)
+            {
+                ex.input("flow.0", flow1);
+            }
+            else
+            {
+                ex.input("flow.1", flow);
+            }
             ex.extract("f1", ctx1[0], cmd);
             ex.extract("f2", ctx1[1], cmd);
             ex.extract("f3", ctx1[2], cmd);
@@ -990,6 +1080,8 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
         }
 
         // avg flow
+        ncnn::Mat flow0[8];
+        ncnn::Mat flow1[8];
         {
             ncnn::Mat flow_x0 = flow[0].channel(0);
             ncnn::Mat flow_x1 = flow[1].channel(0);
@@ -1009,50 +1101,170 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
             ncnn::Mat flow_y6 = flow[6].channel(1);
             ncnn::Mat flow_y7 = flow[7].channel(1);
 
-            for (int i = 0; i < flow_x0.h; i++)
+            if (rife_v2)
             {
-                float* x0 = flow_x0.row(i);
-                float* x1 = flow_x1.row(i) + flow_x0.w - 1;
-                float* x2 = flow_x2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
-                float* x3 = flow_x3.row(flow_x0.h - 1 - i);
+                ncnn::Mat flow_z0 = flow[0].channel(2);
+                ncnn::Mat flow_z1 = flow[1].channel(2);
+                ncnn::Mat flow_z2 = flow[2].channel(2);
+                ncnn::Mat flow_z3 = flow[3].channel(2);
+                ncnn::Mat flow_z4 = flow[4].channel(2);
+                ncnn::Mat flow_z5 = flow[5].channel(2);
+                ncnn::Mat flow_z6 = flow[6].channel(2);
+                ncnn::Mat flow_z7 = flow[7].channel(2);
 
-                float* y0 = flow_y0.row(i);
-                float* y1 = flow_y1.row(i) + flow_x0.w - 1;
-                float* y2 = flow_y2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
-                float* y3 = flow_y3.row(flow_x0.h - 1 - i);
+                ncnn::Mat flow_w0 = flow[0].channel(3);
+                ncnn::Mat flow_w1 = flow[1].channel(3);
+                ncnn::Mat flow_w2 = flow[2].channel(3);
+                ncnn::Mat flow_w3 = flow[3].channel(3);
+                ncnn::Mat flow_w4 = flow[4].channel(3);
+                ncnn::Mat flow_w5 = flow[5].channel(3);
+                ncnn::Mat flow_w6 = flow[6].channel(3);
+                ncnn::Mat flow_w7 = flow[7].channel(3);
 
-                for (int j = 0; j < flow_x0.w; j++)
+                for (int i = 0; i < flow_x0.h; i++)
                 {
-                    float* x4 = flow_x4.row(j) + i;
-                    float* x5 = flow_x5.row(j) + flow_x0.h - 1 - i;
-                    float* x6 = flow_x6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
-                    float* x7 = flow_x7.row(flow_x0.w - 1 - j) + i;
+                    float* x0 = flow_x0.row(i);
+                    float* x1 = flow_x1.row(i) + flow_x0.w - 1;
+                    float* x2 = flow_x2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* x3 = flow_x3.row(flow_x0.h - 1 - i);
 
-                    float* y4 = flow_y4.row(j) + i;
-                    float* y5 = flow_y5.row(j) + flow_x0.h - 1 - i;
-                    float* y6 = flow_y6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
-                    float* y7 = flow_y7.row(flow_x0.w - 1 - j) + i;
+                    float* y0 = flow_y0.row(i);
+                    float* y1 = flow_y1.row(i) + flow_x0.w - 1;
+                    float* y2 = flow_y2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* y3 = flow_y3.row(flow_x0.h - 1 - i);
 
-                    float x = (*x0 + -*x1 + -*x2 + *x3 + *y4 + *y5 + -*y6 + -*y7) * 0.125f;
-                    float y = (*y0 + *y1 + -*y2 + -*y3 + *x4 + -*x5 + -*x6 + *x7) * 0.125f;
+                    float* z0 = flow_z0.row(i);
+                    float* z1 = flow_z1.row(i) + flow_x0.w - 1;
+                    float* z2 = flow_z2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* z3 = flow_z3.row(flow_x0.h - 1 - i);
 
-                    *x0++ = x;
-                    *x1-- = -x;
-                    *x2-- = -x;
-                    *x3++ = x;
-                    *x4 = y;
-                    *x5 = -y;
-                    *x6 = -y;
-                    *x7 = y;
+                    float* w0 = flow_w0.row(i);
+                    float* w1 = flow_w1.row(i) + flow_x0.w - 1;
+                    float* w2 = flow_w2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* w3 = flow_w3.row(flow_x0.h - 1 - i);
 
-                    *y0++ = y;
-                    *y1-- = y;
-                    *y2-- = -y;
-                    *y3++ = -y;
-                    *y4 = x;
-                    *y5 = x;
-                    *y6 = -x;
-                    *y7 = -x;
+                    for (int j = 0; j < flow_x0.w; j++)
+                    {
+                        float* x4 = flow_x4.row(j) + i;
+                        float* x5 = flow_x5.row(j) + flow_x0.h - 1 - i;
+                        float* x6 = flow_x6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* x7 = flow_x7.row(flow_x0.w - 1 - j) + i;
+
+                        float* y4 = flow_y4.row(j) + i;
+                        float* y5 = flow_y5.row(j) + flow_x0.h - 1 - i;
+                        float* y6 = flow_y6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* y7 = flow_y7.row(flow_x0.w - 1 - j) + i;
+
+                        float* z4 = flow_z4.row(j) + i;
+                        float* z5 = flow_z5.row(j) + flow_x0.h - 1 - i;
+                        float* z6 = flow_z6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* z7 = flow_z7.row(flow_x0.w - 1 - j) + i;
+
+                        float* w4 = flow_w4.row(j) + i;
+                        float* w5 = flow_w5.row(j) + flow_x0.h - 1 - i;
+                        float* w6 = flow_w6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* w7 = flow_w7.row(flow_x0.w - 1 - j) + i;
+
+                        float x = (*x0 + -*x1 + -*x2 + *x3 + *y4 + *y5 + -*y6 + -*y7) * 0.125f;
+                        float y = (*y0 + *y1 + -*y2 + -*y3 + *x4 + -*x5 + -*x6 + *x7) * 0.125f;
+                        float z = (*z0 + -*z1 + -*z2 + *z3 + *w4 + *w5 + -*w6 + -*w7) * 0.125f;
+                        float w = (*w0 + *w1 + -*w2 + -*w3 + *z4 + -*z5 + -*z6 + *z7) * 0.125f;
+
+                        *x0++ = x;
+                        *x1-- = -x;
+                        *x2-- = -x;
+                        *x3++ = x;
+                        *x4 = y;
+                        *x5 = -y;
+                        *x6 = -y;
+                        *x7 = y;
+
+                        *y0++ = y;
+                        *y1-- = y;
+                        *y2-- = -y;
+                        *y3++ = -y;
+                        *y4 = x;
+                        *y5 = x;
+                        *y6 = -x;
+                        *y7 = -x;
+
+                        *z0++ = z;
+                        *z1-- = -z;
+                        *z2-- = -z;
+                        *z3++ = z;
+                        *z4 = w;
+                        *z5 = -w;
+                        *z6 = -w;
+                        *z7 = w;
+
+                        *w0++ = w;
+                        *w1-- = w;
+                        *w2-- = -w;
+                        *w3++ = -w;
+                        *w4 = z;
+                        *w5 = z;
+                        *w6 = -z;
+                        *w7 = -z;
+                    }
+                }
+
+                for (int ti = 0; ti < 8; ti++)
+                {
+                    std::vector<ncnn::Mat> inputs(1);
+                    inputs[0] = flow[ti];
+                    std::vector<ncnn::Mat> outputs(2);
+                    rife_v2_slice_flow->forward(inputs, outputs, opt);
+                    flow0[ti] = outputs[0];
+                    flow1[ti] = outputs[1];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < flow_x0.h; i++)
+                {
+                    float* x0 = flow_x0.row(i);
+                    float* x1 = flow_x1.row(i) + flow_x0.w - 1;
+                    float* x2 = flow_x2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* x3 = flow_x3.row(flow_x0.h - 1 - i);
+
+                    float* y0 = flow_y0.row(i);
+                    float* y1 = flow_y1.row(i) + flow_x0.w - 1;
+                    float* y2 = flow_y2.row(flow_x0.h - 1 - i) + flow_x0.w - 1;
+                    float* y3 = flow_y3.row(flow_x0.h - 1 - i);
+
+                    for (int j = 0; j < flow_x0.w; j++)
+                    {
+                        float* x4 = flow_x4.row(j) + i;
+                        float* x5 = flow_x5.row(j) + flow_x0.h - 1 - i;
+                        float* x6 = flow_x6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* x7 = flow_x7.row(flow_x0.w - 1 - j) + i;
+
+                        float* y4 = flow_y4.row(j) + i;
+                        float* y5 = flow_y5.row(j) + flow_x0.h - 1 - i;
+                        float* y6 = flow_y6.row(flow_x0.w - 1 - j) + flow_x0.h - 1 - i;
+                        float* y7 = flow_y7.row(flow_x0.w - 1 - j) + i;
+
+                        float x = (*x0 + -*x1 + -*x2 + *x3 + *y4 + *y5 + -*y6 + -*y7) * 0.125f;
+                        float y = (*y0 + *y1 + -*y2 + -*y3 + *x4 + -*x5 + -*x6 + *x7) * 0.125f;
+
+                        *x0++ = x;
+                        *x1-- = -x;
+                        *x2-- = -x;
+                        *x3++ = x;
+                        *x4 = y;
+                        *x5 = -y;
+                        *x6 = -y;
+                        *x7 = y;
+
+                        *y0++ = y;
+                        *y1-- = y;
+                        *y2-- = -y;
+                        *y3++ = -y;
+                        *y4 = x;
+                        *y5 = x;
+                        *y6 = -x;
+                        *y7 = -x;
+                    }
                 }
             }
         }
@@ -1067,7 +1279,14 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
                 ncnn::Extractor ex = contextnet.create_extractor();
 
                 ex.input("input.1", in0_padded[ti]);
-                ex.input("flow.0", flow[ti]);
+                if (rife_v2)
+                {
+                    ex.input("flow.0", flow0[ti]);
+                }
+                else
+                {
+                    ex.input("flow.0", flow[ti]);
+                }
                 ex.extract("f1", ctx0[0]);
                 ex.extract("f2", ctx0[1]);
                 ex.extract("f3", ctx0[2]);
@@ -1077,7 +1296,14 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
                 ncnn::Extractor ex = contextnet.create_extractor();
 
                 ex.input("input.1", in1_padded[ti]);
-                ex.input("flow.1", flow[ti]);
+                if (rife_v2)
+                {
+                    ex.input("flow.0", flow1[ti]);
+                }
+                else
+                {
+                    ex.input("flow.1", flow[ti]);
+                }
                 ex.extract("f1", ctx1[0]);
                 ex.extract("f2", ctx1[1]);
                 ex.extract("f3", ctx1[2]);
@@ -1209,6 +1435,8 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
 
         // flownet
         ncnn::Mat flow;
+        ncnn::Mat flow0;
+        ncnn::Mat flow1;
         {
             ncnn::Extractor ex = flownet.create_extractor();
 
@@ -1236,6 +1464,16 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
                 ex.input("input1", in1_padded);
                 ex.extract("flow", flow);
             }
+
+            if (rife_v2)
+            {
+                std::vector<ncnn::Mat> inputs(1);
+                inputs[0] = flow;
+                std::vector<ncnn::Mat> outputs(2);
+                rife_v2_slice_flow->forward(inputs, outputs, opt);
+                flow0 = outputs[0];
+                flow1 = outputs[1];
+            }
         }
 
         // contextnet
@@ -1245,7 +1483,14 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
             ncnn::Extractor ex = contextnet.create_extractor();
 
             ex.input("input.1", in0_padded);
-            ex.input("flow.0", flow);
+            if (rife_v2)
+            {
+                ex.input("flow.0", flow0);
+            }
+            else
+            {
+                ex.input("flow.0", flow);
+            }
             ex.extract("f1", ctx0[0]);
             ex.extract("f2", ctx0[1]);
             ex.extract("f3", ctx0[2]);
@@ -1255,7 +1500,14 @@ int RIFE::process_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, floa
             ncnn::Extractor ex = contextnet.create_extractor();
 
             ex.input("input.1", in1_padded);
-            ex.input("flow.1", flow);
+            if (rife_v2)
+            {
+                ex.input("flow.0", flow1);
+            }
+            else
+            {
+                ex.input("flow.1", flow);
+            }
             ex.extract("f1", ctx1[0]);
             ex.extract("f2", ctx1[1]);
             ex.extract("f3", ctx1[2]);
