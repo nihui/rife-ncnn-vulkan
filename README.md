@@ -134,6 +134,7 @@ cmake --build . -j 4
 | rife-HD | 1.5 |
 | rife-UHD | 1.6 |
 | rife-anime | 1.8 |
+| rife-v2 | 2.0 |
 
 ## Sample Images
 
