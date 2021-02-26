@@ -30,11 +30,16 @@ https://arxiv.org/abs/2011.06294
 
 Input two frame images, output one interpolated frame image.
 
-### Example Command
+### Example Commands
 
 ```shell
 ./rife-ncnn-vulkan -0 0.jpg -1 1.jpg -o 01.jpg
 ./rife-ncnn-vulkan -i input_frames/ -o output_frames/
+```
+
+Example below runs on CPU, Discrete GPU, and Integrated GPU all at the same time. Uses 2 threads for image decoding, 4 threads for one CPU worker, 4 threads for another CPU worker, 2 threads for discrete GPU, 1 thread for integrated GPU, and 4 threads for image encoding.
+```shell
+./rife-ncnn-vulkan -i input_frames/ -o output_frames/ -g -1,-1,0,1 -j 2:4,4,2,1:4
 ```
 
 ### Video Interpolation with FFmpeg
@@ -56,6 +61,7 @@ ffmpeg -i input.mp4 input_frames/frame_%06d.png
 ./rife-ncnn-vulkan -i input_frames -o output_frames
 
 # encode interpolated frames in 48fps with audio
+# if using rife_v2, replace %06d with %08d
 ffmpeg -framerate 48 -i output_frames/%06d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
 ```
 
