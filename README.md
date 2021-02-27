@@ -55,14 +55,13 @@ ffprobe input.mp4
 ffmpeg -i input.mp4 -vn -acodec copy audio.m4a
 
 # decode all frames
-ffmpeg -i input.mp4 input_frames/frame_%06d.png
+ffmpeg -i input.mp4 input_frames/frame_%08d.png
 
 # interpolate 2x frame count
 ./rife-ncnn-vulkan -i input_frames -o output_frames
 
 # encode interpolated frames in 48fps with audio
-# if using rife_v2, replace %06d with %08d
-ffmpeg -framerate 48 -i output_frames/%06d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
+ffmpeg -framerate 48 -i output_frames/%08d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
 ```
 
 ### Full Usages
@@ -141,6 +140,8 @@ cmake --build . -j 4
 | rife-UHD | 1.6 |
 | rife-anime | 1.8 |
 | rife-v2 | 2.0 |
+| rife-v2.3 | 2.3 |
+| rife-v2.4 | 2.4 |
 
 ## Sample Images
 
