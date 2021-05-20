@@ -1,8 +1,8 @@
 7767517
-74 83
+72 81
 Input                    img0                     0 1 img0
 Input                    img1                     0 1 img1
-Input                    input.1                  0 1 input.1
+Input                    flow                     0 1 flow
 Input                    3                        0 1 3
 Input                    4                        0 1 4
 Input                    5                        0 1 5
@@ -11,16 +11,14 @@ Input                    7                        0 1 7
 Input                    8                        0 1 8
 Input                    9                        0 1 9
 Input                    10                       0 1 10
-Interp                   Resize_1                 1 1 input.1 64 0=2 1=2.000000e+00 2=2.000000e+00
+Interp                   Resize_1                 1 1 flow 64 0=2 1=2.000000e+00 2=2.000000e+00
 BinaryOp                 Mul_3                    1 1 64 66 0=2 1=1 2=2.000000e+00
 Split                    splitncnn_0              1 3 66 66_splitncnn_0 66_splitncnn_1 66_splitncnn_2
 Crop                     Slice_8                  1 1 66_splitncnn_2 71 -23309=1,0 -23310=1,2 -23311=1,0
-Concat                   Concat_9                 2 1 img0 71 72
-Crop                     Slice_14                 1 1 72 77 -23309=1,2 -23310=1,2147483647 -23311=1,0
+rife.Warp                Warp_14                  2 1 img0 71 77
 Split                    splitncnn_1              1 2 77 77_splitncnn_0 77_splitncnn_1
 Crop                     Slice_19                 1 1 66_splitncnn_1 82 -23309=1,2 -23310=1,4 -23311=1,0
-Concat                   Concat_20                2 1 img1 82 83
-Crop                     Slice_25                 1 1 83 88 -23309=1,2 -23310=1,2147483647 -23311=1,0
+rife.Warp                Warp_14                  2 1 img1 82 88
 Split                    splitncnn_2              1 2 88 88_splitncnn_0 88_splitncnn_1
 Concat                   Concat_26                3 1 77_splitncnn_1 88_splitncnn_1 66_splitncnn_0 89
 Convolution              Conv_27                  1 1 89 90 0=32 1=3 3=2 4=1 5=1 6=2880
@@ -73,4 +71,4 @@ BinaryOp                 Sub_80                   1 1 154_splitncnn_0 157 0=7 1=
 BinaryOp                 Mul_81                   2 1 88_splitncnn_0 157 158 0=2
 BinaryOp                 Add_82                   2 1 155 158 159
 BinaryOp                 Add_83                   2 1 159 149 160
-Clip                     Clip_84                  1 1 160 165 0=0.000000e+00 1=1.000000e+00
+Clip                     Clip_84                  1 1 160 output 0=0.000000e+00 1=1.000000e+00
