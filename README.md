@@ -144,6 +144,7 @@ cmake --build . -j 4
 | rife-v2.3 | 2.3 |
 | rife-v2.4 | 2.4 |
 | rife-v3.0 | 3.0 |
+| rife-v3.1 | 3.1 |
 
 ## Sample Images
 
