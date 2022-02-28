@@ -696,6 +696,7 @@ int main(int argc, char** argv)
     }
 
     bool rife_v2 = false;
+    bool rife_v4 = false;
     if (model.find(PATHSTR("rife-v2")) != path_t::npos)
     {
         // fine
@@ -705,6 +706,11 @@ int main(int argc, char** argv)
     {
         // fine
         rife_v2 = true;
+    }
+    else if (model.find(PATHSTR("rife-v4")) != path_t::npos)
+    {
+        // fine
+        rife_v4 = true;
     }
     else if (model.find(PATHSTR("rife")) != path_t::npos)
     {
@@ -773,7 +779,7 @@ int main(int argc, char** argv)
         {
             int num_threads = gpuid[i] == -1 ? jobs_proc[i] : 1;
 
-            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode, num_threads, rife_v2);
+            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode, num_threads, rife_v2, rife_v4);
 
             rife[i]->load(modeldir);
         }

@@ -131,6 +131,7 @@ cmake --build . -j 4
 ### TODO
 
 * test-time temporal augmentation aka TTA-t
+* num-frame and time-step parameter
 
 ### Model
 
@@ -145,6 +146,7 @@ cmake --build . -j 4
 | rife-v2.4 | 2.4 |
 | rife-v3.0 | 3.0 |
 | rife-v3.1 | 3.1 |
+| rife-v4 | 4.0 |
 
 ## Sample Images
 
