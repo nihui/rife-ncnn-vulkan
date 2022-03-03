@@ -111,7 +111,7 @@ static void print_usage()
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
     fprintf(stderr, "  -n num-frame         target frame count (default=N*2)\n");
     fprintf(stderr, "  -s time-step         time step (0~1, default=0.5)\n");
-    fprintf(stderr, "  -m model-path        rife model path (default=rife-HD)\n");
+    fprintf(stderr, "  -m model-path        rife model path (default=rife-v2.3)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
     fprintf(stdout, "  -x                   enable tta mode\n");
@@ -447,7 +447,7 @@ int main(int argc, char** argv)
     path_t outputpath;
     int numframe = 0;
     float timestep = 0.5f;
-    path_t model = PATHSTR("rife-HD");
+    path_t model = PATHSTR("rife-v2.3");
     std::vector<int> gpuid;
     int jobs_load = 1;
     std::vector<int> jobs_proc;
