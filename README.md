@@ -77,6 +77,8 @@ Usage: rife-ncnn-vulkan -0 infile -1 infile1 -o outfile [options]...
   -1 input1-path       input image1 path (jpg/png/webp)
   -i input-path        input image directory (jpg/png/webp)
   -o output-path       output image path (jpg/png/webp) or directory
+  -n num-frame         target frame count (default=N*2)
+  -s time-step         time step (0~1, default=0.5)
   -m model-path        rife model path (default=rife-HD)
   -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu
   -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu
@@ -87,6 +89,8 @@ Usage: rife-ncnn-vulkan -0 infile -1 infile1 -o outfile [options]...
 
 - `input0-path`, `input1-path` and `output-path` accept file path
 - `input-path` and `output-path` accept file directory
+- `num-frame` = target frame count
+- `time-step` = interpolation time
 - `load:proc:save` = thread count for the three stages (image decoding + rife interpolation + image encoding), using larger values may increase GPU usage and consume more GPU memory. You can tune this configuration with "4:4:4" for many small-size images, and "2:2:2" for large-size images. The default setting usually works fine for most situations. If you find that your GPU is hungry, try increasing thread count to achieve faster processing.
 - `pattern-format` = the filename pattern and format of the image to be output, png is better supported, however webp generally yields smaller file sizes, both are losslessly encoded
 

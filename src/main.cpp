@@ -109,6 +109,8 @@ static void print_usage()
     fprintf(stderr, "  -1 input1-path       input image1 path (jpg/png/webp)\n");
     fprintf(stderr, "  -i input-path        input image directory (jpg/png/webp)\n");
     fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
+    fprintf(stderr, "  -n num-frame         target frame count (default=N*2)\n");
+    fprintf(stderr, "  -s time-step         time step (0~1, default=0.5)\n");
     fprintf(stderr, "  -m model-path        rife model path (default=rife-HD)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
@@ -443,6 +445,8 @@ int main(int argc, char** argv)
     path_t input1path;
     path_t inputpath;
     path_t outputpath;
+    int numframe = 0;
+    float timestep = 0.5f;
     path_t model = PATHSTR("rife-HD");
     std::vector<int> gpuid;
     int jobs_load = 1;
@@ -456,7 +460,7 @@ int main(int argc, char** argv)
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:m:g:j:f:vxuh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:n:s:m:g:j:f:vxuh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -471,6 +475,12 @@ int main(int argc, char** argv)
             break;
         case L'o':
             outputpath = optarg;
+            break;
+        case L'n':
+            numframe = _wtoi(optarg);
+            break;
+        case L's':
+            timestep = _wtof(optarg);
             break;
         case L'm':
             model = optarg;
@@ -502,7 +512,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:m:g:j:f:vxuh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:n:s:m:g:j:f:vxuh")) != -1)
     {
         switch (opt)
         {
@@ -517,6 +527,12 @@ int main(int argc, char** argv)
             break;
         case 'o':
             outputpath = optarg;
+            break;
+        case 'n':
+            numframe = atoi(optarg);
+            break;
+        case 's':
+            timestep = atof(optarg);
             break;
         case 'm':
             model = optarg;
@@ -551,6 +567,18 @@ int main(int argc, char** argv)
     if (((input0path.empty() || input1path.empty()) && inputpath.empty()) || outputpath.empty())
     {
         print_usage();
+        return -1;
+    }
+
+    if (inputpath.empty() && (timestep <= 0.f || timestep >= 1.f))
+    {
+        fprintf(stderr, "invalid timestep argument, must be 0~1\n");
+        return -1;
+    }
+
+    if (!inputpath.empty() && numframe < 0)
+    {
+        fprintf(stderr, "invalid numframe argument, must not be negative\n");
         return -1;
     }
 
@@ -619,6 +647,39 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    bool rife_v2 = false;
+    bool rife_v4 = false;
+    if (model.find(PATHSTR("rife-v2")) != path_t::npos)
+    {
+        // fine
+        rife_v2 = true;
+    }
+    else if (model.find(PATHSTR("rife-v3")) != path_t::npos)
+    {
+        // fine
+        rife_v2 = true;
+    }
+    else if (model.find(PATHSTR("rife-v4")) != path_t::npos)
+    {
+        // fine
+        rife_v4 = true;
+    }
+    else if (model.find(PATHSTR("rife")) != path_t::npos)
+    {
+        // fine
+    }
+    else
+    {
+        fprintf(stderr, "unknown model dir type\n");
+        return -1;
+    }
+
+    if (!rife_v4 && (numframe != 0 || timestep != 0.5))
+    {
+        fprintf(stderr, "only rife-v4 model support custom numframe and timestep\n");
+        return -1;
+    }
+
     // collect input and output filepath
     std::vector<path_t> input0_files;
     std::vector<path_t> input1_files;
@@ -633,7 +694,8 @@ int main(int argc, char** argv)
                 return -1;
 
             const int count = filenames.size();
-            const int numframe = count * 2;
+            if (numframe == 0)
+                numframe = count * 2;
 
             input0_files.resize(numframe);
             input1_files.resize(numframe);
@@ -685,7 +747,7 @@ int main(int argc, char** argv)
             input0_files.push_back(input0path);
             input1_files.push_back(input1path);
             output_files.push_back(outputpath);
-            timesteps.push_back(0.5f);
+            timesteps.push_back(timestep);
         }
         else
         {
@@ -693,33 +755,6 @@ int main(int argc, char** argv)
             fprintf(stderr, "inputpath and outputpath must be directory at the same time\n");
             return -1;
         }
-    }
-
-    bool rife_v2 = false;
-    bool rife_v4 = false;
-    if (model.find(PATHSTR("rife-v2")) != path_t::npos)
-    {
-        // fine
-        rife_v2 = true;
-    }
-    else if (model.find(PATHSTR("rife-v3")) != path_t::npos)
-    {
-        // fine
-        rife_v2 = true;
-    }
-    else if (model.find(PATHSTR("rife-v4")) != path_t::npos)
-    {
-        // fine
-        rife_v4 = true;
-    }
-    else if (model.find(PATHSTR("rife")) != path_t::npos)
-    {
-        // fine
-    }
-    else
-    {
-        fprintf(stderr, "unknown model dir type\n");
-        return -1;
     }
 
     path_t modeldir = sanitize_dirpath(model);
