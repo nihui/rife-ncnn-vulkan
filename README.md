@@ -135,7 +135,6 @@ cmake --build . -j 4
 ### TODO
 
 * test-time temporal augmentation aka TTA-t
-* num-frame and time-step parameter
 
 ### Model
 
