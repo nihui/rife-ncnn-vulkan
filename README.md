@@ -43,7 +43,7 @@ Example below runs on CPU, Discrete GPU, and Integrated GPU all at the same time
 ./rife-ncnn-vulkan -i input_frames/ -o output_frames/ -g -1,-1,0,1 -j 2:4,4,2,1:4
 ```
 
-### Video Interpolation with FFmpeg
+### Video Interpolation with FFmpeg (Linux)
 
 ```shell
 mkdir input_frames
@@ -56,13 +56,35 @@ ffprobe input.mp4
 ffmpeg -i input.mp4 -vn -acodec copy audio.m4a
 
 # decode all frames
-ffmpeg -i input.mp4 input_frames/frame_%08d.png
+ffmpeg -i input.mp4 -r 30 input_frames/frame_%08d.png
 
 # interpolate 2x frame count
 ./rife-ncnn-vulkan -i input_frames -o output_frames
 
 # encode interpolated frames in 48fps with audio
 ffmpeg -framerate 48 -i output_frames/%08d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
+```
+
+### Video Interpolation with FFmpeg (Windows)
+
+```shell
+md input_frames
+md output_frames
+
+# find the source fps and format with ffprobe, for example 24fps, AAC
+ffprobe input.mp4
+
+# extract audio
+ffmpeg -i input.mp4 -vn -acodec copy audio.m4a
+
+# decode all frames
+ffmpeg -i input.mp4 -r 30 ./input_frames/frame_%08d.png
+
+# interpolate 2x frame count
+rife-ncnn-vulkan -i ./input_frames -o ./output_frames
+
+# encode interpolated frames in 48fps with audio
+ffmpeg -r 60 -i ./output_frames/%08d.png -i audio.m4a -c:a copy -crf 20 -c:v libx264 -pix_fmt yuv420p output.mp4
 ```
 
 ### Full Usages
