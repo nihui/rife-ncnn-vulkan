@@ -43,8 +43,8 @@ Convolution              conv_29                  1 1 72 74 0=192 1=3 4=1 5=1 6=
 BinaryOp                 add_15                   2 1 74 71 75
 ReLU                     leakyrelu_73             1 1 75 76 0=2.000000e-01
 Deconvolution            deconv_60                1 1 76 77 0=24 1=4 3=2 4=1 5=1 6=73728
-PixelShuffle             pixelshuffle_104         1 1 77 78 0=2
-Interp                   upsample_10              1 1 78 79 0=2 1=8.000000e+00 2=8.000000e+00
+PixelShuffle             pixelshuffle_104         1 1 77 flow0 0=2
+Interp                   upsample_10              1 1 flow0 79 0=2 1=8.000000e+00 2=8.000000e+00
 Split                    splitncnn_11             1 2 79 80 81
 Crop                     slice_108                1 1 81 82 -23309=1,0 -23310=1,4 -23311=1,0
 BinaryOp                 mul_16                   1 1 82 83 0=2 1=1 2=8.000000e+00
@@ -95,8 +95,8 @@ Convolution              conv_39                  1 1 153 155 0=128 1=3 4=1 5=1 
 BinaryOp                 add_33                   2 1 155 152 156
 ReLU                     leakyrelu_83             1 1 156 157 0=2.000000e-01
 Deconvolution            deconv_61                1 1 157 158 0=24 1=4 3=2 4=1 5=1 6=49152
-PixelShuffle             pixelshuffle_105         1 1 158 159 0=2
-Interp                   upsample_13              1 1 159 160 0=2 1=4.000000e+00 2=4.000000e+00
+PixelShuffle             pixelshuffle_105         1 1 158 flow1 0=2
+Interp                   upsample_13              1 1 flow1 160 0=2 1=4.000000e+00 2=4.000000e+00
 Split                    splitncnn_22             1 2 160 161 162
 Crop                     slice_112                1 1 162 163 -23309=1,0 -23310=1,4 -23311=1,0
 Eltwise                  weighted_sum_0           2 1 84 163 164 0=1 -23301=2,1.000000e+00,4.000000e+00
@@ -148,8 +148,8 @@ Convolution              conv_49                  1 1 235 237 0=96 1=3 4=1 5=1 6
 BinaryOp                 add_53                   2 1 237 234 238
 ReLU                     leakyrelu_93             1 1 238 239 0=2.000000e-01
 Deconvolution            deconv_62                1 1 239 240 0=24 1=4 3=2 4=1 5=1 6=36864
-PixelShuffle             pixelshuffle_106         1 1 240 241 0=2
-Interp                   upsample_16              1 1 241 242 0=2 1=2.000000e+00 2=2.000000e+00
+PixelShuffle             pixelshuffle_106         1 1 240 flow2 0=2
+Interp                   upsample_16              1 1 flow2 242 0=2 1=2.000000e+00 2=2.000000e+00
 Split                    splitncnn_33             1 2 242 243 244
 Crop                     slice_116                1 1 244 245 -23309=1,0 -23310=1,4 -23311=1,0
 Eltwise                  weighted_sum_1           2 1 165 245 246 0=1 -23301=2,1.000000e+00,2.000000e+00
@@ -198,8 +198,8 @@ Convolution              conv_59                  1 1 316 318 0=64 1=3 4=1 5=1 6
 BinaryOp                 add_72                   2 1 318 315 319
 ReLU                     leakyrelu_103            1 1 319 320 0=2.000000e-01
 Deconvolution            deconv_63                1 1 320 321 0=24 1=4 3=2 4=1 5=1 6=24576
-PixelShuffle             pixelshuffle_107         1 1 321 323 0=2
-Split                    splitncnn_44             1 2 323 324 325
+PixelShuffle             pixelshuffle_107         1 1 321 flow3 0=2
+Split                    splitncnn_44             1 2 flow3 324 325
 Crop                     slice_120                1 1 325 326 -23309=1,0 -23310=1,4 -23311=1,0
 BinaryOp                 add_73                   2 1 247 326 327
 Split                    splitncnn_45             1 2 327 328 329
