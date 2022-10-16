@@ -114,7 +114,8 @@ static void print_usage()
     fprintf(stderr, "  -m model-path        rife model path (default=rife-v2.3)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
-    fprintf(stdout, "  -x                   enable tta mode\n");
+    fprintf(stdout, "  -x                   enable spatial tta mode\n");
+    fprintf(stdout, "  -z                   enable temporal tta mode\n");
     fprintf(stdout, "  -u                   enable UHD mode\n");
     fprintf(stderr, "  -f pattern-format    output image filename pattern format (%%08d.jpg/png/webp, default=ext/%%08d.png)\n");
 }
@@ -454,13 +455,14 @@ int main(int argc, char** argv)
     int jobs_save = 2;
     int verbose = 0;
     int tta_mode = 0;
+    int tta_temporal_mode = 0;
     int uhd_mode = 0;
     path_t pattern_format = PATHSTR("%08d.png");
 
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"0:1:i:o:n:s:m:g:j:f:vxuh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"0:1:i:o:n:s:m:g:j:f:vxzuh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -501,6 +503,9 @@ int main(int argc, char** argv)
         case L'x':
             tta_mode = 1;
             break;
+        case L'z':
+            tta_temporal_mode = 1;
+            break;
         case L'u':
             uhd_mode = 1;
             break;
@@ -512,7 +517,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "0:1:i:o:n:s:m:g:j:f:vxuh")) != -1)
+    while ((opt = getopt(argc, argv, "0:1:i:o:n:s:m:g:j:f:vxzuh")) != -1)
     {
         switch (opt)
         {
@@ -552,6 +557,9 @@ int main(int argc, char** argv)
             break;
         case 'x':
             tta_mode = 1;
+            break;
+        case 'z':
+            tta_temporal_mode = 1;
             break;
         case 'u':
             uhd_mode = 1;
@@ -814,7 +822,7 @@ int main(int argc, char** argv)
         {
             int num_threads = gpuid[i] == -1 ? jobs_proc[i] : 1;
 
-            rife[i] = new RIFE(gpuid[i], tta_mode, uhd_mode, num_threads, rife_v2, rife_v4);
+            rife[i] = new RIFE(gpuid[i], tta_mode, tta_temporal_mode, uhd_mode, num_threads, rife_v2, rife_v4);
 
             rife[i]->load(modeldir);
         }

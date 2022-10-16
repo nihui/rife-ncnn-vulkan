@@ -82,7 +82,8 @@ Usage: rife-ncnn-vulkan -0 infile -1 infile1 -o outfile [options]...
   -m model-path        rife model path (default=rife-v2.3)
   -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu
   -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu
-  -x                   enable tta mode
+  -x                   enable spatial tta mode
+  -z                   enable temporal tta mode
   -u                   enable UHD mode
   -f pattern-format    output image filename pattern format (%08d.jpg/png/webp, default=ext/%08d.png)
 ```
@@ -131,10 +132,6 @@ cd build
 cmake ../src
 cmake --build . -j 4
 ```
-
-### TODO
-
-* test-time temporal augmentation aka TTA-t
 
 ### Model
 
