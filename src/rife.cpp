@@ -16,6 +16,7 @@
 #include "rife_v2_flow_tta_temporal_avg.comp.hex.h"
 #include "rife_out_tta_temporal_avg.comp.hex.h"
 #include "rife_v4_timestep.comp.hex.h"
+#include "rife_v4_timestep_tta.comp.hex.h"
 
 #include "rife_ops.h"
 
@@ -349,7 +350,10 @@ int RIFE::load(const std::string& modeldir)
                 ncnn::MutexLockGuard guard(lock);
                 if (spirv.empty())
                 {
-                    compile_spirv_module(rife_v4_timestep_comp_data, sizeof(rife_v4_timestep_comp_data), opt, spirv);
+                    if (tta_mode)
+                        compile_spirv_module(rife_v4_timestep_tta_comp_data, sizeof(rife_v4_timestep_tta_comp_data), opt, spirv);
+                    else
+                        compile_spirv_module(rife_v4_timestep_comp_data, sizeof(rife_v4_timestep_comp_data), opt, spirv);
                 }
             }
 
@@ -2517,6 +2521,140 @@ int RIFE::process_v4(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float
 
     ncnn::VkMat out_gpu;
 
+    if (tta_mode)
+    {
+        // preproc
+        ncnn::VkMat in0_gpu_padded[8];
+        ncnn::VkMat in1_gpu_padded[8];
+        ncnn::VkMat timestep_gpu_padded[2];
+        {
+            in0_gpu_padded[0].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[1].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[2].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[3].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[4].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[5].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[6].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in0_gpu_padded[7].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+
+            std::vector<ncnn::VkMat> bindings(9);
+            bindings[0] = in0_gpu;
+            bindings[1] = in0_gpu_padded[0];
+            bindings[2] = in0_gpu_padded[1];
+            bindings[3] = in0_gpu_padded[2];
+            bindings[4] = in0_gpu_padded[3];
+            bindings[5] = in0_gpu_padded[4];
+            bindings[6] = in0_gpu_padded[5];
+            bindings[7] = in0_gpu_padded[6];
+            bindings[8] = in0_gpu_padded[7];
+
+            std::vector<ncnn::vk_constant_type> constants(6);
+            constants[0].i = in0_gpu.w;
+            constants[1].i = in0_gpu.h;
+            constants[2].i = in0_gpu.cstep;
+            constants[3].i = in0_gpu_padded[0].w;
+            constants[4].i = in0_gpu_padded[0].h;
+            constants[5].i = in0_gpu_padded[0].cstep;
+
+            cmd.record_pipeline(rife_preproc, bindings, constants, in0_gpu_padded[0]);
+        }
+        {
+            in1_gpu_padded[0].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[1].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[2].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[3].create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[4].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[5].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[6].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+            in1_gpu_padded[7].create(h_padded, w_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+
+            std::vector<ncnn::VkMat> bindings(9);
+            bindings[0] = in1_gpu;
+            bindings[1] = in1_gpu_padded[0];
+            bindings[2] = in1_gpu_padded[1];
+            bindings[3] = in1_gpu_padded[2];
+            bindings[4] = in1_gpu_padded[3];
+            bindings[5] = in1_gpu_padded[4];
+            bindings[6] = in1_gpu_padded[5];
+            bindings[7] = in1_gpu_padded[6];
+            bindings[8] = in1_gpu_padded[7];
+
+            std::vector<ncnn::vk_constant_type> constants(6);
+            constants[0].i = in1_gpu.w;
+            constants[1].i = in1_gpu.h;
+            constants[2].i = in1_gpu.cstep;
+            constants[3].i = in1_gpu_padded[0].w;
+            constants[4].i = in1_gpu_padded[0].h;
+            constants[5].i = in1_gpu_padded[0].cstep;
+
+            cmd.record_pipeline(rife_preproc, bindings, constants, in1_gpu_padded[0]);
+        }
+        {
+            timestep_gpu_padded[0].create(w_padded, h_padded, 1, in_out_tile_elemsize, 1, blob_vkallocator);
+            timestep_gpu_padded[1].create(h_padded, w_padded, 1, in_out_tile_elemsize, 1, blob_vkallocator);
+
+            std::vector<ncnn::VkMat> bindings(2);
+            bindings[0] = timestep_gpu_padded[0];
+            bindings[1] = timestep_gpu_padded[1];
+
+            std::vector<ncnn::vk_constant_type> constants(4);
+            constants[0].i = timestep_gpu_padded[0].w;
+            constants[1].i = timestep_gpu_padded[0].h;
+            constants[2].i = timestep_gpu_padded[0].cstep;
+            constants[3].f = timestep;
+
+            cmd.record_pipeline(rife_v4_timestep, bindings, constants, timestep_gpu_padded[0]);
+        }
+
+        ncnn::VkMat out_gpu_padded[8];
+        for (int ti = 0; ti < 8; ti++)
+        {
+            // flownet
+            ncnn::Extractor ex = flownet.create_extractor();
+            ex.set_blob_vkallocator(blob_vkallocator);
+            ex.set_workspace_vkallocator(blob_vkallocator);
+            ex.set_staging_vkallocator(staging_vkallocator);
+
+            ex.input("in0", in0_gpu_padded[ti]);
+            ex.input("in1", in1_gpu_padded[ti]);
+            ex.input("in2", timestep_gpu_padded[ti / 4]);
+            ex.extract("out0", out_gpu_padded[ti], cmd);
+        }
+
+        if (opt.use_fp16_storage && opt.use_int8_storage)
+        {
+            out_gpu.create(w, h, (size_t)channels, 1, blob_vkallocator);
+        }
+        else
+        {
+            out_gpu.create(w, h, channels, (size_t)4u, 1, blob_vkallocator);
+        }
+
+        // postproc
+        {
+            std::vector<ncnn::VkMat> bindings(9);
+            bindings[0] = out_gpu_padded[0];
+            bindings[1] = out_gpu_padded[1];
+            bindings[2] = out_gpu_padded[2];
+            bindings[3] = out_gpu_padded[3];
+            bindings[4] = out_gpu_padded[4];
+            bindings[5] = out_gpu_padded[5];
+            bindings[6] = out_gpu_padded[6];
+            bindings[7] = out_gpu_padded[7];
+            bindings[8] = out_gpu;
+
+            std::vector<ncnn::vk_constant_type> constants(6);
+            constants[0].i = out_gpu_padded[0].w;
+            constants[1].i = out_gpu_padded[0].h;
+            constants[2].i = out_gpu_padded[0].cstep;
+            constants[3].i = out_gpu.w;
+            constants[4].i = out_gpu.h;
+            constants[5].i = out_gpu.cstep;
+
+            cmd.record_pipeline(rife_postproc, bindings, constants, out_gpu);
+        }
+    }
+    else
     {
         // preproc
         ncnn::VkMat in0_gpu_padded;
@@ -2683,6 +2821,227 @@ int RIFE::process_v4_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, f
 
     ncnn::Mat out;
 
+    if (tta_mode)
+    {
+        // preproc and border padding
+        ncnn::Mat in0_padded[8];
+        ncnn::Mat in1_padded[8];
+        ncnn::Mat timestep_padded[2];
+        {
+            in0_padded[0].create(w_padded, h_padded, 3);
+            for (int q = 0; q < 3; q++)
+            {
+                float* outptr = in0_padded[0].channel(q);
+
+                int i = 0;
+                for (; i < h; i++)
+                {
+                    const float* ptr = in0.channel(q).row(i);
+
+                    int j = 0;
+                    for (; j < w; j++)
+                    {
+                        *outptr++ = *ptr++ * (1 / 255.f) - 0.5f;
+                    }
+                    for (; j < w_padded; j++)
+                    {
+                        *outptr++ = 0.f;
+                    }
+                }
+                for (; i < h_padded; i++)
+                {
+                    for (int j = 0; j < w_padded; j++)
+                    {
+                        *outptr++ = 0.f;
+                    }
+                }
+            }
+        }
+        {
+            in1_padded[0].create(w_padded, h_padded, 3);
+            for (int q = 0; q < 3; q++)
+            {
+                float* outptr = in1_padded[0].channel(q);
+
+                int i = 0;
+                for (; i < h; i++)
+                {
+                    const float* ptr = in1.channel(q).row(i);
+
+                    int j = 0;
+                    for (; j < w; j++)
+                    {
+                        *outptr++ = *ptr++ * (1 / 255.f) - 0.5f;
+                    }
+                    for (; j < w_padded; j++)
+                    {
+                        *outptr++ = 0.f;
+                    }
+                }
+                for (; i < h_padded; i++)
+                {
+                    for (int j = 0; j < w_padded; j++)
+                    {
+                        *outptr++ = 0.f;
+                    }
+                }
+            }
+        }
+        {
+            timestep_padded[0].create(h_padded, w_padded, 1);
+            timestep_padded[1].create(h_padded, w_padded, 1);
+            timestep_padded[0].fill(timestep);
+            timestep_padded[1].fill(timestep);
+        }
+
+        // the other 7 directions
+        {
+            in0_padded[1].create(w_padded, h_padded, 3);
+            in0_padded[2].create(w_padded, h_padded, 3);
+            in0_padded[3].create(w_padded, h_padded, 3);
+            in0_padded[4].create(h_padded, w_padded, 3);
+            in0_padded[5].create(h_padded, w_padded, 3);
+            in0_padded[6].create(h_padded, w_padded, 3);
+            in0_padded[7].create(h_padded, w_padded, 3);
+
+            for (int q = 0; q < 3; q++)
+            {
+                const ncnn::Mat in0_padded_0 = in0_padded[0].channel(q);
+                ncnn::Mat in0_padded_1 = in0_padded[1].channel(q);
+                ncnn::Mat in0_padded_2 = in0_padded[2].channel(q);
+                ncnn::Mat in0_padded_3 = in0_padded[3].channel(q);
+                ncnn::Mat in0_padded_4 = in0_padded[4].channel(q);
+                ncnn::Mat in0_padded_5 = in0_padded[5].channel(q);
+                ncnn::Mat in0_padded_6 = in0_padded[6].channel(q);
+                ncnn::Mat in0_padded_7 = in0_padded[7].channel(q);
+
+                for (int i = 0; i < h_padded; i++)
+                {
+                    const float* outptr0 = in0_padded_0.row(i);
+                    float* outptr1 = in0_padded_1.row(i) + w_padded - 1;
+                    float* outptr2 = in0_padded_2.row(h_padded - 1 - i) + w_padded - 1;
+                    float* outptr3 = in0_padded_3.row(h_padded - 1 - i);
+
+                    for (int j = 0; j < w_padded; j++)
+                    {
+                        float* outptr4 = in0_padded_4.row(j) + i;
+                        float* outptr5 = in0_padded_5.row(j) + h_padded - 1 - i;
+                        float* outptr6 = in0_padded_6.row(w_padded - 1 - j) + h_padded - 1 - i;
+                        float* outptr7 = in0_padded_7.row(w_padded - 1 - j) + i;
+
+                        float v = *outptr0++;
+
+                        *outptr1-- = v;
+                        *outptr2-- = v;
+                        *outptr3++ = v;
+                        *outptr4 = v;
+                        *outptr5 = v;
+                        *outptr6 = v;
+                        *outptr7 = v;
+                    }
+                }
+            }
+        }
+        {
+            in1_padded[1].create(w_padded, h_padded, 3);
+            in1_padded[2].create(w_padded, h_padded, 3);
+            in1_padded[3].create(w_padded, h_padded, 3);
+            in1_padded[4].create(h_padded, w_padded, 3);
+            in1_padded[5].create(h_padded, w_padded, 3);
+            in1_padded[6].create(h_padded, w_padded, 3);
+            in1_padded[7].create(h_padded, w_padded, 3);
+
+            for (int q = 0; q < 3; q++)
+            {
+                const ncnn::Mat in1_padded_0 = in1_padded[0].channel(q);
+                ncnn::Mat in1_padded_1 = in1_padded[1].channel(q);
+                ncnn::Mat in1_padded_2 = in1_padded[2].channel(q);
+                ncnn::Mat in1_padded_3 = in1_padded[3].channel(q);
+                ncnn::Mat in1_padded_4 = in1_padded[4].channel(q);
+                ncnn::Mat in1_padded_5 = in1_padded[5].channel(q);
+                ncnn::Mat in1_padded_6 = in1_padded[6].channel(q);
+                ncnn::Mat in1_padded_7 = in1_padded[7].channel(q);
+
+                for (int i = 0; i < h_padded; i++)
+                {
+                    const float* outptr0 = in1_padded_0.row(i);
+                    float* outptr1 = in1_padded_1.row(i) + w_padded - 1;
+                    float* outptr2 = in1_padded_2.row(h_padded - 1 - i) + w_padded - 1;
+                    float* outptr3 = in1_padded_3.row(h_padded - 1 - i);
+
+                    for (int j = 0; j < w_padded; j++)
+                    {
+                        float* outptr4 = in1_padded_4.row(j) + i;
+                        float* outptr5 = in1_padded_5.row(j) + h_padded - 1 - i;
+                        float* outptr6 = in1_padded_6.row(w_padded - 1 - j) + h_padded - 1 - i;
+                        float* outptr7 = in1_padded_7.row(w_padded - 1 - j) + i;
+
+                        float v = *outptr0++;
+
+                        *outptr1-- = v;
+                        *outptr2-- = v;
+                        *outptr3++ = v;
+                        *outptr4 = v;
+                        *outptr5 = v;
+                        *outptr6 = v;
+                        *outptr7 = v;
+                    }
+                }
+            }
+        }
+
+        ncnn::Mat out_padded[8];
+        for (int ti = 0; ti < 8; ti++)
+        {
+            // flownet
+            {
+                ncnn::Extractor ex = flownet.create_extractor();
+
+                ex.input("in0", in0_padded[ti]);
+                ex.input("in1", in1_padded[ti]);
+                ex.input("in2", timestep_padded[ti / 4]);
+                ex.extract("out0", out_padded[ti]);
+            }
+        }
+
+        // cut padding and postproc
+        out.create(w, h, 3);
+        {
+            for (int q = 0; q < 3; q++)
+            {
+                const ncnn::Mat out_padded_0 = out_padded[0].channel(q);
+                const ncnn::Mat out_padded_1 = out_padded[1].channel(q);
+                const ncnn::Mat out_padded_2 = out_padded[2].channel(q);
+                const ncnn::Mat out_padded_3 = out_padded[3].channel(q);
+                const ncnn::Mat out_padded_4 = out_padded[4].channel(q);
+                const ncnn::Mat out_padded_5 = out_padded[5].channel(q);
+                const ncnn::Mat out_padded_6 = out_padded[6].channel(q);
+                const ncnn::Mat out_padded_7 = out_padded[7].channel(q);
+                float* outptr = out.channel(q);
+
+                for (int i = 0; i < h; i++)
+                {
+                    const float* ptr0 = out_padded_0.row(i);
+                    const float* ptr1 = out_padded_1.row(i) + w_padded - 1;
+                    const float* ptr2 = out_padded_2.row(h_padded - 1 - i) + w_padded - 1;
+                    const float* ptr3 = out_padded_3.row(h_padded - 1 - i);
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        const float* ptr4 = out_padded_4.row(j) + i;
+                        const float* ptr5 = out_padded_5.row(j) + h_padded - 1 - i;
+                        const float* ptr6 = out_padded_6.row(w_padded - 1 - j) + h_padded - 1 - i;
+                        const float* ptr7 = out_padded_7.row(w_padded - 1 - j) + i;
+
+                        float v = (*ptr0++ + *ptr1-- + *ptr2-- + *ptr3++ + *ptr4 + *ptr5 + *ptr6 + *ptr7) / 8;
+
+                        *outptr++ = (v + 0.5f) * 255.f + 0.5f;
+                    }
+                }
+            }
+        }
+    }
+    else
     {
         // preproc and border padding
         ncnn::Mat in0_padded;
