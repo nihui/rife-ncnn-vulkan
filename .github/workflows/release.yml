@@ -231,8 +231,8 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
+        name: windows
+        path: build\rife-ncnn-vulkan.exe
 
   release:
     needs: [setup, ubuntu]
