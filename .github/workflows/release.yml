@@ -233,15 +233,26 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         path: artifacts
-
+    - name: Generate version and tag
+        id: version_tag
+        run: |
+          version=$(python -c "from datetime import datetime; print(str(datetime.now()).split(' ')[0].replace('-',''))")
+          tag=$(python -c "import random, string; print(''.join(random.choices(string.ascii_letters, k=8)))")
+          commitlog=$(cd REAL-Video-Enhancer && git log --since="24 hours ago" --pretty=format:"%h - %s")
+          echo "Version=$version"
+          echo "Tag=$version"
+          echo "CommitLog=$commitlog"
+          echo "::set-output name=version::$version"
+          echo "::set-output name=tag::$version"
+          echo "::set-output name=commitlog::$commitlog"
     - name: create-release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ needs.setup.outputs.VERSION }}
-        release_name: Release ${{ needs.setup.outputs.VERSION }}
+        tag_name: ${{ steps.version_tag.outputs.tag }}
+        release_name: Release ${{ steps.version_tag.outputs.tag }}
         draft: false
         prerelease: false
     
