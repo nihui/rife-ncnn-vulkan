@@ -231,12 +231,14 @@ jobs:
     - name: log
       run: |
          dir
+         cd build
+         dir
          
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: windows
-        path: build\rife-ncnn-vulkan.exe
+        path: build/rife-ncnn-vulkan.exe
 
   release:
     needs: [setup, ubuntu]
