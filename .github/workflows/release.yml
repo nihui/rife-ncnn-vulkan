@@ -60,11 +60,13 @@ jobs:
     - name: log
       run: |
           ls
+          cd build && ls
+          
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: ubuntu
-        path: ubuntu.zip
+        path: build/rife-ncnn-vulkan
     
 
   openmp-macos:
