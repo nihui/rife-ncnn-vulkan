@@ -60,8 +60,8 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
+        name: ubuntu
+        path: ubuntu.zip
     
 
   openmp-macos:
@@ -265,7 +265,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
-        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_name: windows.zip
         asset_content_type: application/zip
 
     #- name: upload-macos
