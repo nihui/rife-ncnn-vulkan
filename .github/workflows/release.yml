@@ -235,8 +235,7 @@ jobs:
          dir
          cd Release
          dir
-         cd build
-         dir
+         
     - name: log ncnn
       run: |
           cd build
@@ -249,8 +248,7 @@ jobs:
           dir
     - name: log
       run: |
-          cd build
-          cd rife-ncnn-vulkan.dir
+          cd D:\a\rife-ncnn-vulkan\rife-ncnn-vulkan\rife-ncnn-vulkan-refs
           dir
     - name: upload
       uses: actions/upload-artifact@v2
