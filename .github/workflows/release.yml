@@ -228,17 +228,33 @@ jobs:
         Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
         Copy-Item -Verbose -Recurse -Path "models\*" -Destination "${{ env.PACKAGENAME }}"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: log
+    - name: log release
       run: |
          dir
          cd build
          dir
-         
+         cd Release
+         dir
+    - name: log ncnn
+      run: |
+          cd build
+          cd ncnn
+          dir
+    - name: logx64
+      run: |
+          cd build
+          cd x64
+          dir
+    - name: log
+      run: |
+          cd build
+          cd rife-ncnn-vulkan.dir
+          dir
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: windows
-        path: build/rife-ncnn-vulkan.exe
+        path: build\Release\rife-ncnn-vulkan.exe
 
   release:
     needs: [setup, ubuntu]
