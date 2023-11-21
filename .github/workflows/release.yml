@@ -228,6 +228,9 @@ jobs:
         Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
         Copy-Item -Verbose -Recurse -Path "models\*" -Destination "${{ env.PACKAGENAME }}"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: log
+      run: |
+         dir /s /b /o:gn
     - name: upload
       uses: actions/upload-artifact@v2
       with:
