@@ -230,7 +230,7 @@ jobs:
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: log
       run: |
-         dir /s /b /o:gn
+         dir /s /b 
     - name: upload
       uses: actions/upload-artifact@v2
       with:
