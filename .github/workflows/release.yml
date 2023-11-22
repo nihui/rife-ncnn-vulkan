@@ -254,7 +254,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: windows
-        path: build\Release\build\heads\master-windows.zip
+        path: D:\a\rife-ncnn-vulkan\rife-ncnn-vulkan\rife-ncnn-vulkan-refs\heads\master-windows.zip
 
   release:
     needs: [setup, ubuntu]
