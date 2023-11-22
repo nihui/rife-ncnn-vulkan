@@ -248,13 +248,13 @@ jobs:
           dir
     - name: log
       run: |
-          cd D:\a\rife-ncnn-vulkan\rife-ncnn-vulkan\rife-ncnn-vulkan-refs
+          cd D:\a\rife-ncnn-vulkan\rife-ncnn-vulkan\rife-ncnn-vulkan-refs\heads
           dir
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: windows
-        path: build\Release\build\rife-ncnn-vulkan.exe
+        path: build\Release\build\heads\rife-ncnn-vulkan.exe
 
   release:
     needs: [setup, ubuntu]
