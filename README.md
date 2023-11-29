@@ -167,6 +167,14 @@ cmake --build . -j 4
 ![origin0](images/0.png)
 ![origin1](images/1.png)
 
+### Interpolate with rife-v4.12 model
+
+```shell
+rife-ncnn-vulkan.exe -m models/rife-v4.12 -0 0.png -1 1.png -o out.png
+```
+
+![rife](images/out12.png)
+
 ### Interpolate with rife rife-anime model
 
 ```shell
