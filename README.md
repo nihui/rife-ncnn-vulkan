@@ -201,3 +201,4 @@ rife-ncnn-vulkan.exe -m models/rife-anime -x -0 0.png -1 1.png -o out.png
 - https://github.com/webmproject/libwebp for encoding and decoding Webp images on ALL PLATFORMS
 - https://github.com/nothings/stb for decoding and encoding image on Linux / MacOS
 - https://github.com/tronkko/dirent for listing files in directory on Windows
+- https://github.com/styler00dollar/VapourSynth-RIFE-ncnn-Vulkan for the added models
