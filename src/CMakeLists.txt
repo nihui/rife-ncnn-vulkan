@@ -89,7 +89,9 @@ endif()
 
 if(NOT USE_SYSTEM_NCNN)
     # build ncnn library
-    
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ncnn/CMakeLists.txt")
+        message(FATAL_ERROR "The submodules were not downloaded! Please update submodules with \"git submodule update --init --recursive\" and try again.")
+    endif()
 
     option(NCNN_INSTALL_SDK "" OFF)
     option(NCNN_PIXEL_ROTATE "" OFF)
@@ -214,7 +216,9 @@ endif()
 
 if(NOT USE_SYSTEM_WEBP)
     # build libwebp library
-    
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libwebp/CMakeLists.txt")
+        message(FATAL_ERROR "The submodules were not downloaded! Please update submodules with \"git submodule update --init --recursive\" and try again.")
+    endif()
 
     option(WEBP_ENABLE_SIMD "" ON)
     option(WEBP_BUILD_ANIM_UTILS "" OFF)
