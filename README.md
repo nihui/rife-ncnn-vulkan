@@ -1,6 +1,6 @@
 # RIFE ncnn Vulkan
 
-# Guide to add your own models:
+# Guide to convert your own models:
 
 https://github.com/TNTwise/REAL-Video-Enhancer/wiki/Convert-Rife-Models
 
