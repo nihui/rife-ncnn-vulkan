@@ -710,7 +710,7 @@ int main(int argc, char** argv)
             output_files.resize(numframe);
             timesteps.resize(numframe);
 
-            double scale = (double)count / numframe;
+            double scale = (double)(count - 1.0) / (numframe - 1.0);
             for (int i=0; i<numframe; i++)
             {
                 // TODO provide option to control timestep interpolate method
