@@ -2,21 +2,18 @@ cmake_policy(SET CMP0091 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+cmake_minimum_required(VERSION 3.10)
 project(rife-ncnn-vulkan)
 
-cmake_minimum_required(VERSION 3.9)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-option(USE_SYSTEM_NCNN "build with system libncnn" OFF)
-option(USE_SYSTEM_WEBP "build with system libwebp" OFF)
 option(USE_STATIC_MOLTENVK "link moltenvk static library" OFF)
 
 find_package(Threads)
 find_package(OpenMP)
-find_package(Vulkan REQUIRED)
 
 macro(rife_add_shader SHADER_SRC)
     get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
@@ -98,6 +95,7 @@ if(NOT USE_SYSTEM_NCNN)
     option(NCNN_PIXEL_AFFINE "" OFF)
     option(NCNN_PIXEL_DRAWING "" OFF)
     option(NCNN_VULKAN "" ON)
+    option(NCNN_SIMPLEVK "" ON)
     option(NCNN_VULKAN_ONLINE_SPIRV "" ON)
     option(NCNN_BUILD_BENCHMARK "" OFF)
     option(NCNN_BUILD_TESTS "" OFF)
@@ -106,6 +104,7 @@ if(NOT USE_SYSTEM_NCNN)
     option(NCNN_DISABLE_RTTI "" ON)
     option(NCNN_DISABLE_EXCEPTION "" ON)
     option(NCNN_INT8 "" OFF)
+    option(NCNN_BF16 "" OFF)
 
     option(WITH_LAYER_absval "" OFF)
     option(WITH_LAYER_argmax "" OFF)
@@ -201,6 +200,19 @@ if(NOT USE_SYSTEM_NCNN)
     option(WITH_LAYER_deconvolutiondepthwise3d "" OFF)
     option(WITH_LAYER_einsum "" OFF)
     option(WITH_LAYER_deformableconv2d "" OFF)
+    option(WITH_LAYER_glu "" OFF)
+    option(WITH_LAYER_fold "" OFF)
+    option(WITH_LAYER_unfold "" OFF)
+    option(WITH_LAYER_gridsample "" OFF)
+    option(WITH_LAYER_cumulativesum "" OFF)
+    option(WITH_LAYER_copyto "" OFF)
+    option(WITH_LAYER_erf "" OFF)
+    option(WITH_LAYER_diag "" OFF)
+    option(WITH_LAYER_celu "" OFF)
+    option(WITH_LAYER_shrink "" OFF)
+    option(WITH_LAYER_rmsnorm "" OFF)
+    option(WITH_LAYER_spectrogram "" OFF)
+    option(WITH_LAYER_inversespectrogram "" OFF)
 
     add_subdirectory(ncnn)
 endif()
@@ -258,6 +270,10 @@ rife_add_shader(warp_pack8.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
+if(MINGW)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -municode")
+endif()
+
 add_executable(rife-ncnn-vulkan
     main.cpp
     rife.cpp
@@ -266,7 +282,7 @@ add_executable(rife-ncnn-vulkan
 
 add_dependencies(rife-ncnn-vulkan generate-spirv)
 
-set(RIFE_LINK_LIBRARIES ncnn webp ${Vulkan_LIBRARY})
+set(RIFE_LINK_LIBRARIES ncnn webp)
 
 if(USE_STATIC_MOLTENVK)
     find_library(CoreFoundation NAMES CoreFoundation)
@@ -279,6 +295,7 @@ if(USE_STATIC_MOLTENVK)
     find_library(IOSurface NAMES IOSurface)
 
     list(APPEND RIFE_LINK_LIBRARIES
+        ${Vulkan_LIBRARY}
         ${Metal}
         ${QuartzCore}
         ${CoreGraphics}
@@ -291,3 +308,7 @@ if(USE_STATIC_MOLTENVK)
 endif()
 
 target_link_libraries(rife-ncnn-vulkan ${RIFE_LINK_LIBRARIES})
+
+include(GNUInstallDirs)
+
+install(TARGETS rife-ncnn-vulkan RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

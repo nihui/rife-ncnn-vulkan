@@ -58,24 +58,6 @@ int Warp::create_pipeline(const Option& opt)
         pipeline_warp_pack4->create(spirv.data(), spirv.size() * 4, specializations);
     }
 
-    // pack8
-    if (opt.use_shader_pack8)
-    {
-        static std::vector<uint32_t> spirv;
-        static ncnn::Mutex lock;
-        {
-            ncnn::MutexLockGuard guard(lock);
-            if (spirv.empty())
-            {
-                compile_spirv_module(warp_pack8_comp_data, sizeof(warp_pack8_comp_data), opt, spirv);
-            }
-        }
-
-        pipeline_warp_pack8 = new Pipeline(vkdev);
-        pipeline_warp_pack8->set_optimal_local_size_xyz();
-        pipeline_warp_pack8->create(spirv.data(), spirv.size() * 4, specializations);
-    }
-
     return 0;
 }
 
